@@ -1,15 +1,56 @@
 import pdal
 from osgeo import ogr
-from shapely import Polygon
+from shapely import Polygon, Point, LineString
 import geopandas as gpd
+import pandas as pd
 import glob
+import os
+
 
 def main():
-    path = r'E:/NATUR_CUNI/_DP/data/LAZ/*.laz'
+    path = r"E:/NATUR_CUNI/_DP/data/Trajectory/*.txt"
     
-    file_list01 = get_files(path)
+    trajectory(path)
 
-    create_dataframe(file_list01)
+
+def trajectory(path):
+    file_list = get_files(path)
+
+    d_lines = {'start': [], 'end': [], 'geometry': []}
+
+    for file in file_list:
+        split_path = os.path.split(file)
+        shp_point_path = os.path.join(split_path[0], 'points', split_path[1][:-4] + '_p.shp')
+        print(shp_point_path)
+        
+        df = pd.read_csv(file)
+        df['geometry'] = df.apply(lambda row: Point(row[['Easting[m]', 'Northing[m]', 'Height[m]']]), axis=1)
+        geodf_points = gpd.GeoDataFrame(df, crs="EPSG:32632")
+        geodf_points.to_file(shp_point_path)
+
+        start = df['Time[s]'].iat[0]
+        end = df['Time[s]'].iat[-1]
+        line = LineString(geodf_points['geometry'])
+        d_lines['start'] += [start]
+        d_lines['end'] += [end]
+        d_lines['geometry'] += [line]
+
+    shp_line_path = os.path.join(split_path[0], 'lines', 'trajectory.shp')
+
+    geodf_lines = gpd.GeoDataFrame(d_lines, crs="EPSG:32632")
+    geodf_lines.to_file(shp_line_path)
+
+
+def create_boundary_shp(path):
+    print(os.path.split(path)[0])
+    shp_path = os.path.join(os.path.split(path)[0], 'boundary/boundary.shp')
+    print(shp_path)
+    
+    file_list = get_files(path)
+
+    filenames, geometries = create_lists(file_list)
+
+    create_shapefile(shp_path, filenames, geometries)
 
 
 
@@ -18,16 +59,17 @@ def get_files(path):
 
 
 def get_pipeline(file):
+    file = '"' + str(file).replace('\\', '/') + '"'
     x = """
-    {
+    {{
         "pipeline": [
             {},
-            {
+            {{
                 "type": "filters.stats"
-            },
-            "info.json"
+            }}
         ]
-    }""".format(file)
+    }}""".format(file)
+    print(x)
     return x
 
 
@@ -36,17 +78,32 @@ def boundary(metadata):
     return Polygon(coord)
 
 
-def create_dataframe(file_list):
+def create_lists(file_list):
 
-    attributes = []
+    filenames = []
     geometries = []
 
     for file in file_list:
+        filename = os.path.split(file)[-1]
+        filenames.append(filename)
         pipeline = pdal.Pipeline(get_pipeline(file))
         execution = pipeline.execute()
         metadata = pipeline.metadata
         geom = boundary(metadata)
         geometries.append(geom)
+
+    print(filenames)
+    print(geometries)
+
+    return filenames, geometries
+
+
+def create_shapefile(shp_path, filenames, geometries):
+    d = {'filename': filenames, 'geometry': geometries}
+    gdf = gpd.GeoDataFrame(d, crs="EPSG:32632")
+    gdf.to_file(shp_path)
+
+
 
 
 def test():
