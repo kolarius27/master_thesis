@@ -1,0 +1,1220 @@
+<?xml version='1.0' encoding='ISO-8859-1' ?>
+<!--
+
+XML-log created by OPALS.
+
+This XML-file contains specifications to transform the log into XHTML.
+Load this file in a browser for a nice presentation of the log.
+The actual logging data is located at the end of this file.
+
+This file is self-contained.
+
+-->
+
+<?xml-stylesheet type='text/xsl' href='#'?>
+<xsl:stylesheet version='1.0'
+	xmlns:xsl='http://www.w3.org/1999/XSL/Transform'
+	xmlns:opals='http://www.dummy.nowhere/'>
+	<xsl:output method='html' media-type='text/html' indent='no' encoding='ISO-8859-1' doctype-public='-//W3C//DTD HTML 4.01//EN' doctype-system='http://www.w3.org/TR/html4/strict.dtd' />
+
+	<xsl:template match='xsl:stylesheet'>
+		<xsl:apply-templates select='opals:Log' />
+	</xsl:template>
+
+	<xsl:template match='opals:Log'>
+
+		<html>
+			<head>
+				<title>Opals Log</title>
+
+				<link rel='shortcut icon' href='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAAACXBIWXMAAC4jAAAuIwF4pT92AAAC1klEQVR4nO2VW0jTURzHzznb3NR5yzua5SwLNUGFUgK10IcViGA9mRREYA8WaGIXe+jFh3wojB4k0FTMsIvoRDRCTXAzxduURNmms+l0zl3+83/d5fRgVEwt1ISC/R7P7/s9n8Pv9+P8IMYYHGSgA73dA/AA/hWA04XtTtdOWf4+bycYlnUABLBIgHyFXn8TYKZYK8UBADDADOfwFgl8hAIIoJtsjyVSaFaNNlpvpVwAI4i0xg0hQoOq1a3KXQNm9JYG+ezRYD+lziQJ85OrVry9eHobJRAgjYFYspB7BzicztqBmf65pctpEplyIdTPW2vcMNgYsVBgIln1KhEX7t88rNojoOeLrrRVjgG+mZX4tFdp2mAy4yPfT2giA0VLZpJguaH5lbNxEUtmW9uYencAg42+/XqwUT6XIYkszkwoe6OY1RN3pak1H6cMVjYhIlg2qR1bWO+Y+AoAsFAOmVJnJJkfdvj7fVDTO9U9rcMYV0hTsuMjr9X3m0im5FxSUnRQaeuQlea6bkl/1Vd/mByZNwT4eL0oyto82XFMP88bHraP0HaHy4VbbuTEHBJffNZNcZwkLCA3MTr/eY8LY5pzuLlyTkZ1TCxYaa5JMVeUEb8j4Gp936h2jYcgH6HRygKStSc/auXxEM05+sryGuVzywTJgzD7RJSbMSUmRGcmj4SIq7rHC9OPIwjde1A3OBt+p2FQrbcyLIBwtLJgetkkLqlbNFOLJvJxQQYAoOydAmOsMRIXEg9vfdzp2FCDjYYQ5D7pdLrwzx5YaPZMVZvOTPmLBCaSTZeEfSrP2+o/9qBFrTYAsQisWXB7xVbBq2FVYbUMiEVg3fbyXv53QHHzQK1snB/ow+NB1kReyTnVdP38ttWrHZiJDvIVIEQw9ktpsdtquqYXg8VCG2PnIwQ7ldryt0MrBLWZgxDcl6aW5ia7/yl7jT+M6f7jf1g4HoAHcNCAbwA/VZzeQ5Z5AAAAAElFTkSuQmCC' />
+
+				<script type='text/javascript'>
+					var lastHash = <xsl:value-of select="concat( '&#34;#', Module[last()]/Name, count(Module), '&#34;' )" />
+					var levelCookieName	= 'maxLogLevel';
+					var threadCookieName = 'selectedThreads';
+					var moduleFilterCookieName = 'selectedModules';
+					var currMaxLogLevel	 = 2;
+					var staticMaxLogLevel	= 4;
+					var logTables;
+					var threadOpt;
+					var threadIds = new Array();
+					<xsl:for-each select='Module/LogEntry'>
+						<xsl:sort data-type='number' select='@Thread' />
+							<xsl:variable name='tId' select='@Thread'/>
+							<xsl:if test='not (preceding-sibling::LogEntry[@Thread=$tId]) and not (../preceding-sibling::Module/LogEntry[@Thread=$tId])' >
+								<xsl:value-of select="concat( 'threadIds.push(', number(@Thread), ');' )" />
+							</xsl:if>
+						</xsl:for-each>
+					/* <![CDATA[ */
+					window.onload=function() {
+						if(!location.hash)
+							location.replace(lastHash);
+						loadLogTables();
+						initThreads();
+						if(document.cookie) {
+							var cookies = document.cookie.split(';');
+							for( var iC=0; iC<cookies.length; ++iC ) {
+								var nameVal = cookies[iC].split('=');
+								if(nameVal.length!=2)
+									continue;
+								for( var iNv=0; iNv<nameVal.length; ++iNv ) {
+									nameVal[iNv] = (nameVal[iNv].replace(/^\W+/,'')).replace(/\W+$/,'');
+								}
+								if(nameVal[0]==levelCookieName) {
+									var ll = parseInt( nameVal[1] );
+									if( ll != NaN && ll >= 0 && ll <= staticMaxLogLevel ) {
+										currMaxLogLevel = ll;
+									}
+								}
+								else if(nameVal[0]==threadCookieName) {
+									var threadsSel = document.getElementById('SelectThreads');
+									for( var iS=0; iS < threadsSel.length; ++iS )
+										threadsSel[iS].selected = false;
+									var tIds = nameVal[1].split('/');
+									for( var iT=0; iT<tIds.length; ++iT )
+										for( var iS=0; iS < threadsSel.length; ++iS )
+											if( threadsSel[iS].text == tIds[iT] ) {
+												threadsSel[iS].selected = true;
+												break;
+											}
+								}
+								else if(nameVal[0]==moduleFilterCookieName) {
+									var moduleSel = document.getElementById('SelectModules');
+									for( var iS=0; iS < moduleSel.length; ++iS )
+										moduleSel[iS].selected = false;
+									var mIds = nameVal[1].split('/');
+									for( var iM=0; iM<mIds.length; ++iM )
+										for( var iS=0; iS < moduleSel.length; ++iS )
+											if( moduleSel[iS].text == mIds[iM] ) {
+												moduleSel[iS].selected = true;
+												break;
+											}
+								}
+							}
+						}
+						updateModuleFilter();
+						updateThreads();
+						updateVisibility();
+					}
+					window.onunload=function() {
+						var str = levelCookieName + '=' + String(currMaxLogLevel) + ';';
+						document.cookie = str;
+						str = threadCookieName + '=';
+						var nPushed=0;
+						var threadsSel = document.getElementById('SelectThreads');
+						for( var sI=0; sI < threadsSel.length; sI++ )
+							if( threadsSel[sI].selected == true ) {
+								if(nPushed>0)
+									str += '/';
+								str += threadsSel[sI].text;
+								nPushed++;
+							}
+						str += ';';
+						document.cookie = str;
+						str = moduleFilterCookieName + '=';
+						var nPushed=0;
+						var modulesSel = document.getElementById('SelectModules');
+						for( var sI=0; sI < modulesSel.length; sI++ )
+							if( modulesSel[sI].selected == true ) {
+								if(nPushed>0)
+									str += '/';
+								str += modulesSel[sI].text;
+								nPushed++;
+							}
+						str += ';';
+						document.cookie = str;
+						if( location.hash == lastHash )
+							location.replace('');
+					}
+					function updateThreads() {
+						threadOpt = new Array();
+						var threadsSel = document.getElementById('SelectThreads');
+						var someDeac=0;
+						for( var idx=0; idx < threadsSel.length; idx++ )
+							if( threadsSel[idx].selected == true )
+								threadOpt[ Number(threadsSel[idx].text) ] = 1;
+							else
+								someDeac=1;
+						var flyout = document.getElementById('ThreadFlyout');
+						if(someDeac==1)
+							flyout.style.color = 'red';
+						else
+							flyout.style.color = 'black';
+					}
+					function threadIsDeactivated( threadNb ) {
+						return threadOpt[threadNb] != 1;
+					}
+					function updateModuleFilter() {
+						var moduleSel = document.getElementById('SelectModules');
+						var someDeac=0;
+						for( var idx=0; idx < moduleSel.length; idx++ ) {
+							if( moduleSel[idx].selected == true ) {
+								var module_divs = document.getElementsByClassName('module_'+moduleSel[idx].value);
+								for (var i = 0; i < module_divs.length; ++i) {
+									module_divs[i].classList.remove('hidden');
+								}
+							}
+							else {
+								someDeac=1;
+								var module_divs = document.getElementsByClassName('module_'+moduleSel[idx].value);
+								for (var i = 0; i < module_divs.length; ++i) {
+									module_divs[i].classList.add('hidden');
+								}
+							}
+						}
+						var flyout = document.getElementById('ModuleFilterFlyout');
+						if(someDeac==1)
+							flyout.style.color = 'red';
+						else
+							flyout.style.color = 'black';
+					}
+					function updateLocation() {
+						if( location.hash )
+							location.replace( location.hash );
+					}
+					function updateVisibility() {
+						if(currMaxLogLevel > staticMaxLogLevel) {
+							currMaxLogLevel = staticMaxLogLevel;
+							return;
+						}
+						if(currMaxLogLevel < 0) {
+								currMaxLogLevel = 0;
+							return;
+						}
+						var txt;
+						switch( currMaxLogLevel ) {
+							case 0: txt = 'error'; break;
+							case 1: txt = 'warning'; break;
+							case 2: txt = 'info'; break;
+							case 3: txt = 'verbose'; break;
+							case 4: txt = 'debug'; break;
+						}
+						document.getElementById('maxLogLevelValue').firstChild.data = txt;
+						for( var tabIdx = 0; tabIdx < logTables.length; tabIdx++ ) {
+							var tab = logTables[tabIdx];
+							for( var rowIdx = 1; rowIdx < tab.rows.length; rowIdx++ ) {
+								var row = tab.rows[rowIdx];
+								if( row.cells.length < 3 )
+									continue;
+								if( row.cells[2].firstChild.data > currMaxLogLevel || threadIsDeactivated( row.cells[3].firstChild.data ) )
+									row.style.display = 'none';
+								else
+									row.style.display = '';
+							}
+						}
+					}
+					function logLevelIncrement() {
+						currMaxLogLevel += 1;
+						updateVisibility();
+						updateLocation();
+					}
+					function logLevelDecrement() {
+						currMaxLogLevel -= 1;
+						updateVisibility();
+						updateLocation();
+					}
+					function threadsAltered() {
+						updateThreads();
+						updateVisibility();
+						updateLocation();
+					}
+					function modulesAltered() {
+						updateModuleFilter();
+						updateVisibility();
+						updateLocation();
+					}
+					function initThreads() {
+						if(threadIds.length == 0)
+							return;
+						for( var iThread = 0; iThread < threadIds.length; ++iThread ) {
+							var opt = document.createElement('option');
+							opt.text = threadIds[iThread];
+							opt.selected=true;
+							try {
+								document.getElementById('SelectThreads').add(opt,null);
+							}
+							catch(ex) {
+								document.getElementById('SelectThreads').add(opt);
+							}
+						}
+					}
+					function loadLogTables() {
+						try {
+							logTables = document.getElementsByClassName('Log');
+						}
+						catch(ex)
+						{
+							logTables = new Array();
+							var tabs = document.getElementsByTagName('table');
+							for( iTab in tabs ) {
+								if( tabs[iTab].className == 'Log' )
+									logTables.push( tabs[iTab] );
+							}
+						}
+					}
+					function showHideTableBody(tabBodyId,tabSwitchId) {
+						var tabBody=document.getElementById(tabBodyId);
+						if(tabBody.style.display=='none' || tabBody.style.display=='' ) {
+							document.getElementById(tabSwitchId).innerHTML='-';
+							tabBody.style.display='table-row-group';
+						}
+						else {
+							document.getElementById(tabSwitchId).innerHTML='+';
+							tabBody.style.display='none';
+						}
+					}
+					function showHideLongValue(spanBodyId,switchId) {
+						var spanElem=document.getElementById(spanBodyId);
+						if(spanElem.style.maxHeight=='none' || spanElem.style.maxHeight=='' ) {
+							document.getElementById(switchId).innerHTML='&#187;&#187;&#187;';
+							spanElem.style.maxHeight='10em';
+						}
+						else {
+							document.getElementById(switchId).innerHTML='&#171;&#171;&#171;';
+							spanElem.style.maxHeight='';
+						}
+					}
+					/* ]]> */
+				</script>
+
+				<style type='text/css'>
+					body		{ font: 12px Verdana, Arial, Helvetica, sans-serif }
+					div.top { padding: 10px }
+					#head {
+						position: fixed;
+						z-index:1;
+						top: 0px; left: 0px;
+						width: 100%; height: 200px;
+						background-color: white;
+						border-bottom: 4px ridge silver;
+						overflow: visible
+					}
+					#data {
+						position:absolute;
+						top: 200px; left: 0px;
+						width: 100%
+					}
+					.link 						{ position: relative; top: -230px }
+					div.flyOut				{ float:left; cursor:pointer; margin-right:15px }
+					div.flyOut:hover	{ font-weight:bold; font-variant:small-caps; font-style:oblique }
+					div.flyer					{ display:none; position:absolute; max-width:80%; max-height:200%; overflow:auto; background-color:white; padding:10px; border: 4px ridge silver }
+					div.flyOut:hover > div.flyer { display:block; font-weight:normal; font-variant:normal; font-style:normal }
+					h1, h2, table caption, .commons-capt { color: #006699 }
+					h1							{ font-size: 35px }
+					#head table, #head table td { border-width: 0px; margin: 0px; padding: 0px; max-width:100% }
+					table						{ margin: auto; margin-bottom: 20px; margin-top: 5px;
+														border-collapse: collapse;
+														border: 1px solid black;	}
+					table caption 	{ margin-top: 15px; font: bold 20px sans-serif; }
+					#data tr:hover	{ background-color: #E0E0E0 }
+					.narrow					{ max-width: 100px; white-space:nowrap; overflow:hidden; align:right; direction:rtl }
+					td							{ border: 1px solid; padding: 3px 5px; border-color: black }
+					.Log td					{ white-space:pre-wrap }
+					td.logmsg				{ text-align:left }
+					td.logmsg td		{ font-family:monospace; text-align:right }
+					td.monospace		{ font-family: monospace }
+					.commons-capt		{ text-align:center; font-weight:bold; border-color: black }
+					th							{ color: white; background-color: #006699; text-align: left; padding: 3px 5px }
+					button 					{ background-color:transparent; outline-width: 0px; border-width: 0px; cursor:pointer }
+					svg							{ margin: 0px; border: 0px; padding: 0px;
+														shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd }
+					.fil0, .fil1 		{ fill:#006699 }
+					.fil1, .fil3 		{ fill-rule:nonzero }
+					.fil2, .fil3 		{ fill:white }
+					.hidden 				{ display:none }
+					a.hidden				{ display:inline; pointer-events: none; cursor: default; opacity: 0.6; color: grey}
+				</style>
+
+			</head>
+
+			<body>
+				<div id='head'>
+					<div class='top'>
+						<table style='width:100%'>
+							<tr>
+								<td style='vertical-align:top; text-align:left; width:100px; height:100px'>
+									<a href='http://geo.tuwien.ac.at/opals'>
+										<svg xmlns='http://www.w3.org/2000/svg' xml:space='preserve' width='159px' height='100px' viewBox='0 0 159 100.195'>
+											<defs>
+												<linearGradient id='gradient' gradientUnits='userSpaceOnUse' x1='94.1629' y1='60.0918' x2='94.1629' y2='0.061108'>
+													<stop offset='0' style='stop-color:#006699'/>
+													<stop offset='1' style='stop-color:white'/>
+												</linearGradient>
+											</defs>
+											<polygon fill='url(#gradient)' points='93.0693,53.6701 109.853,53.6701 124.901,0.0608099 29.3008,60.0918 53.2039,60.0918 124.901,0.0608099 74.9884,47.7513 90.799,47.7513 124.901,0.0608099 142.366,53.5079 159.025,53.5079 124.901,0.0608099 119.339,32.265 131.501,32.265 124.901,0.0608099' />
+											<path class='fil0' d='M29.2594 68.5077c3.04199,-0.669207 6.25001,-1.1849 10.7025,-1.2162 4.82306,-0.116552 8.51339,1.2162 10.3782,3.97291 1.86484,2.75672 2.027,5.18911 2.10808,6.56747 0.0810799,1.37836 -0.0810799,6.16207 -2.59456,9.16202 -2.51348,2.99996 -4.61827,3.48375 -7.05395,3.56751 -3.61908,0.124303 -5.26244,-0.646552 -8.35123,-3.56751l-0.203594 13.0369c-2.10987,0.0345782 -4.21973,0.0691564 -6.3296,0.103735 0.592598,-11.3658 1.06477,-19.0457 1.34408,-31.6268zm5.99216 4.116c1.04271,-0.713026 3.30549,-0.967891 4.93305,-0.967891 4.0525,0 5.8768,2.65686 5.95013,6.4697 0.0697525,3.62832 -1.14853,8.10024 -5.54324,8.10024 -2.93139,0 -4.95869,-1.63948 -5.64519,-4.27935l0.305242 -9.32269z' />
+											<path class='fil0' d='M58.5596 68.6562c8.40637,-2.40408 17.789,-1.57957 18.0552,2.78414 0.135034,2.21837 -0.391091,14.6719 -0.462632,18.5053l-6.12988 -0.057829c0.0268279,-1.45974 0.798279,-9.56087 0.520461,-11.2188 -2.07529,1.85649 -9.93407,2.17366 -9.7731,5.72507 0.160967,3.55142 4.9888,2.69173 7.22863,2.02402l-1.09875 3.75889c-2.40736,0.44892 -4.44151,0.644168 -6.70817,0.289145 -2.26666,-0.355022 -5.50568,-2.78951 -5.32027,-5.95639 0.105523,-1.80164 0.173487,-3.64323 2.60231,-5.20461 2.42882,-1.56138 13.605,-3.08461 13.2428,-6.07205 -0.491249,-4.0534 -8.25763,-1.82549 -12.8959,-0.520461l0.739258 -4.05638z' />
+											<polygon class='fil0' points='82.9554,60.2444 89.2108,60.2444 87.7868,90.0457 81.4808,90.0457' />
+											<path class='fil0' d='M109.096 67.9369l0.152621 4.381c-2.20257,-0.875484 -8.34049,-1.98675 -8.49312,0.814972 -0.171997,3.15735 8.80402,5.64996 8.54379,11.8189 -0.310011,7.3419 -13.8241,5.83209 -16.1215,4.68654l-0.254269 -4.68654c6.91265,2.68547 9.43269,1.29519 9.50632,-0.789038 0.107908,-3.05361 -8.47493,-5.71702 -8.38759,-11.0298 0.140697,-8.55601 15.0537,-5.19597 15.0537,-5.19597z' />
+											<path class='fil0' d='M13.2056 67.3726c2.10808,0.0405399 7.21641,1.37866 9.40526,4.54047 2.18886,3.16182 1.78376,5.75667 1.78376,6.97287 0,1.2162 -0.648639,4.45939 -1.78376,6.48639 -1.13512,2.027 -4.54047,5.35127 -10.3782,5.18911 -5.83775,-0.16216 -8.98496,-2.4321 -10.6215,-4.86479 -1.6365,-2.43269 -1.6365,-4.78371 -1.6365,-6.48639 0,-1.70268 0.258144,-5.75667 3.33918,-8.51339 3.08103,-2.75672 7.78367,-3.36481 9.89174,-3.32427zm-1.01797 4.22361c4.43227,-0.0280202 5.82583,2.9621 5.82583,6.89179 0,4.86479 -2.82587,7.85312 -5.82583,7.85312 -4.70263,0 -6.21841,-4.13925 -6.05446,-7.87697 0.163948,-3.73772 1.62219,-6.83992 6.05446,-6.86794z' />
+										</svg>
+									</a>
+								</td>
+								<td rowspan='2' style='vertical-align:middle; text-align:center; white-space:pre;' >
+									<h1 style='text-shadow:gray 5px 7px 10px;'>Opals Log</h1>
+								</td>
+								<td style='vertical-align:top; text-align:right; width:100px; height:100px'>
+									<a href='http://geo.tuwien.ac.at'>
+										<svg xmlns:svg='http://www.w3.org/2000/svg' xmlns='http://www.w3.org/2000/svg' version='1.1' width='100' height='100' viewBox='0 0 100 100' xml:space='preserve'>
+											<g transform='matrix(0.44097155,0,0,0.44097155,-110.68386,0)'>
+												<path d='M 477.726,22.688 C 477.726,10.158 467.611,0 455.095,0 H 273.663 C 261.147,0 251.017,10.158 251.017,22.688 L 251,204.084 c 0,12.53 10.162,22.688 22.678,22.688 h 181.385 c 12.516,0 22.709,-10.157 22.709,-22.688 L 477.726,22.688 z M 364.47,213.933 c -56.908,0 -103.324,-45.761 -104.399,-102.416 v 0.631 -0.631 c -0.013,-0.668 -0.025,-1.336 -0.025,-2.008 0,-0.438 0.021,-0.872 0.026,-1.309 l 0.016,-85.511 c 0,-7.509 6.09,-13.618 13.575,-13.618 h 62.22 c 9.09,-2.591 18.678,-3.988 28.588,-3.988 9.921,0 19.522,1.391 28.622,3.988 h 62.003 c 7.477,0 13.56,6.109 13.56,13.618 l 0.042,80.435 c 0.128,2.113 0.201,4.241 0.201,6.386 -10e-4,57.578 -46.847,104.423 -104.429,104.423 z' style='fill:#006699;fill-rule:evenodd' />
+												<g>
+													<path d='m 376.057,210.267 c 13.488,-1.541 26.18,-5.736 37.54,-12.053 1.067,-2.3 -0.363,-6.536 -2.014,-11.406 l -0.301,-0.891 c -1.84,-5.443 -3.676,-10.107 -5.861,-14.886 -16.137,8.59 -34.422,14.787 -51.698,17.593 4.737,9.312 12.066,21.979 22.334,21.643 z' style='fill:#ffffff' />
+													<path d='m 411.583,186.808 -0.301,-0.891 c -1.84,-5.443 -3.676,-10.107 -5.861,-14.886 -16.137,8.59 -34.422,14.787 -51.698,17.593 4.736,9.312 12.065,21.979 22.333,21.643 13.488,-1.541 26.18,-5.736 37.54,-12.053 1.069,-2.3 -0.362,-6.536 -2.013,-11.406 z' style='fill:#006699' />
+													<path d='m 289.442,177.686 c 5.992,6.589 12.839,12.388 20.362,17.221 -3.043,-3.177 -5.696,-6.669 -7.986,-10.414 -4.451,-1.842 -8.582,-4.113 -12.376,-6.807 z' style='fill:#006699' />
+													<path d='m 320.147,35.544 c -0.455,0.124 -0.913,0.239 -1.365,0.37 -6.066,1.751 -11.956,4.114 -17.506,7.022 -5.475,2.869 -10.785,6.351 -15.781,10.349 -4.211,3.37 -7.666,7.411 -10.872,12.716 -2.799,4.629 -5.043,9.599 -7.42,14.859 l -0.064,0.144 c -2.656,9.047 -4.093,18.611 -4.093,28.506 0,4.949 0.363,9.814 1.052,14.576 0.217,-15.898 5.503,-29.987 11.176,-40.588 9.982,-18.656 26.049,-35.743 44.873,-47.954 z' style='fill:#006699' />
+													<path d='m 350.597,189.087 c -3.683,0.514 -7.317,0.888 -10.856,1.073 -2.015,0.105 -4.003,0.158 -5.955,0.158 -9.968,0 -19.085,-1.371 -27.248,-4.068 4.912,6.966 11.287,12.833 19.388,17.06 l -0.003,0.006 c 11.891,4.904 24.907,7.617 38.547,7.617 0.952,0 1.901,-0.016 2.847,-0.042 -7.596,-4.475 -12.987,-14.38 -16.72,-21.804 z' style='fill:#006699' />
+													<path d='m 283.621,50.942 c 5.147,-4.118 10.618,-7.706 16.263,-10.664 5.728,-3.002 11.807,-5.44 18.067,-7.247 1.407,-0.406 2.825,-0.783 4.249,-1.141 -3.924,-0.513 -7.789,-0.667 -11.314,-0.396 -7.933,0.609 -13.37,3.338 -18.995,7.263 -5.008,5.138 -9.479,10.799 -13.317,16.9 1.574,-1.707 3.242,-3.27 5.047,-4.715 z' style='fill:#006699' />
+													<path d='m 325.434,29.325 c -0.73,-0.907 -1.473,-1.82 -2.245,-2.746 -1.188,-1.428 -4.206,-5.051 -6.941,-6.258 -5.408,2.937 -10.525,6.342 -15.285,10.176 2.883,-1.022 6.038,-1.713 9.693,-1.994 4.576,-0.352 9.683,-0.054 14.778,0.822 z' style='fill:#006699' />
+													<path d='m 447.691,136.398 c -10.706,13.252 -24.409,24.312 -36.479,31.412 -1.035,0.609 -2.092,1.198 -3.148,1.787 2.267,4.938 4.163,9.743 6.061,15.359 l 0.301,0.888 c 1.374,4.058 2.535,7.537 2.53,10.425 11.53,-7.001 21.557,-16.238 29.484,-27.101 5.944,-9.855 5.034,-21.588 1.251,-32.77 z' style='fill:#006699' />
+													<path d='m 325.493,24.659 c 1.059,1.27 2.06,2.515 3.039,3.752 1.417,-5.373 3.758,-11.847 7.649,-16.313 -5.835,1.698 -11.445,3.923 -16.797,6.591 2.264,1.558 4.385,3.897 6.109,5.97 z' style='fill:#006699' />
+													<path d='m 449.866,133.622 c 2.97,8.128 4.594,16.654 3.463,24.744 8.006,-14.501 12.569,-31.155 12.569,-48.857 0,-1.673 -0.043,-3.337 -0.124,-4.991 -0.224,-0.921 -0.44,-1.776 -0.65,-2.571 -2.244,11.192 -7.898,21.965 -15.258,31.675 z' style='fill:#006699' />
+													<path d='M 336.353,26.646 C 359.634,16.102 388.915,11.918 413.911,20.977 404.557,15.732 394.293,11.929 383.418,9.865 365.667,6.823 348.865,15.354 336.353,26.646 z' style='fill:#006699' />
+													<path d='M 462.226,82.448 C 457.614,65.805 448.855,50.871 437.136,38.827 410.527,13.141 369.522,15.308 338.753,28.849 c 5.623,-0.674 11.339,-1 17.129,-0.955 13.146,0.082 25.894,1.994 37.891,5.685 16.719,5.144 31.158,12.361 42.916,21.451 12.014,9.285 20.642,19.748 26.24,31.821 -0.154,-1.467 -0.398,-2.935 -0.703,-4.403 z' style='fill:#006699' />
+													<path d='m 332.328,26.302 c 8.385,-8.034 18.881,-14.991 30.458,-18.185 -6.251,0.103 -12.368,0.762 -18.297,1.951 -5.124,1.303 -9.194,6.761 -12.161,16.234 z' style='fill:#006699' />
+													<path d='m 428.335,91.371 c -0.262,-1.676 -0.784,-3.165 -1.567,-4.469 -0.784,-1.303 -1.896,-2.327 -3.332,-3.072 -1.438,-0.745 -3.3,-1.117 -5.586,-1.117 -2.484,0 -4.459,0.389 -5.93,1.164 -1.47,0.777 -2.613,1.801 -3.43,3.073 -0.817,1.272 -1.356,2.746 -1.617,4.422 -0.262,1.676 -0.392,3.445 -0.392,5.307 v 15.362 c 0,1.801 0.162,3.507 0.489,5.121 0.326,1.614 0.897,3.058 1.716,4.329 0.815,1.272 1.96,2.281 3.43,3.025 1.47,0.745 3.381,1.117 5.733,1.117 2.155,0 3.935,-0.372 5.341,-1.117 1.404,-0.745 2.514,-1.737 3.332,-2.979 0.815,-1.241 1.387,-2.684 1.715,-4.329 0.326,-1.644 0.49,-3.366 0.49,-5.167 v -9.334 -6.028 c 0.001,-1.863 -0.131,-3.632 -0.392,-5.308 z' style='fill:#006699' />
+													<path d='m 444.331,121.361 c 1.54,2.896 2.993,5.917 4.272,9.016 7.922,-10.816 13.562,-22.889 14.457,-35.278 -0.182,-0.507 -0.286,-0.772 -0.29,-0.781 -5.167,-14.329 -14.291,-26.386 -27.914,-36.915 -11.473,-8.869 -25.592,-15.919 -41.965,-20.958 -11.716,-3.604 -24.174,-5.473 -37.027,-5.552 -6.571,-0.046 -13.06,0.39 -19.425,1.28 14.885,4.894 28.831,11.616 42.543,20.557 8.528,5.562 16.585,11.703 24.155,18.371 -0.925,0.518 -1.803,1.083 -2.631,1.697 C 393.233,66.44 385.51,60.569 377.343,55.243 363.239,46.047 348.901,39.215 333.51,34.357 c -0.191,-0.061 -0.389,-0.11 -0.582,-0.169 0.646,0.892 1.283,1.783 1.901,2.674 7.095,10.25 13.074,19.514 18.281,28.323 0.742,1.256 1.472,2.521 2.209,3.781 h -3.475 c -0.44,-0.75 -0.875,-1.506 -1.317,-2.254 -5.169,-8.747 -11.111,-17.952 -18.164,-28.141 -0.743,-1.072 -1.515,-2.144 -2.303,-3.219 -0.08,0.401 -0.164,0.787 -0.241,1.197 -2.214,11.808 -2.251,24.097 -2.252,36.005 -0.921,-0.663 -1.923,-1.256 -2.998,-1.784 0.01,-11.216 0.156,-22.73 2.167,-33.959 -0.931,1.157 -1.819,2.315 -2.652,3.468 -6.394,8.853 -11.76,17.958 -16.191,27.397 -1.176,0.017 -2.314,0.078 -3.415,0.184 4.634,-10.131 10.337,-19.873 17.174,-29.337 0.175,-0.243 0.366,-0.487 0.546,-0.73 -39.907,25.636 -67.884,73.901 -48.776,116.376 1.073,2.179 2.222,4.314 3.443,6.402 6.254,9.189 14.084,15.396 22.476,19.499 -6.871,-13.384 -9.691,-29.394 -9.728,-45.407 0.932,0.788 1.938,1.504 3.014,2.149 0.292,16.222 3.567,32.274 11.223,45.246 12.109,4.786 24.979,5.671 35.733,5.108 3.135,-0.164 6.346,-0.478 9.599,-0.906 l -0.143,-0.287 c -5.786,-11.572 -10.505,-24.609 -13.646,-37.702 -1.342,-5.592 -2.658,-11.291 -3.887,-17.073 0.879,-1.137 1.646,-2.364 2.301,-3.68 1.4,6.805 2.931,13.503 4.503,20.054 3.089,12.873 7.727,25.688 13.412,37.06 l 0.59,1.185 c 0,0.001 10e-4,0.002 10e-4,0.004 17.277,-2.685 35.663,-8.875 51.845,-17.512 -1.49,-3.188 -2.965,-6.422 -4.393,-9.563 -3.218,-7.08 -6.551,-14.375 -10.201,-21.368 v -6.429 c 0.648,1.217 1.305,2.446 1.948,3.656 3.978,7.483 7.539,15.321 10.984,22.9 1.399,3.079 2.844,6.244 4.301,9.364 0.97,-0.542 1.94,-1.082 2.892,-1.642 12.234,-7.197 26.215,-18.548 36.816,-32.082 -1.012,-2.597 -2.16,-5.149 -3.393,-7.627 0.342,-0.888 0.644,-1.802 0.895,-2.747 0.124,-0.461 0.218,-0.939 0.324,-1.41 z m -111.937,-7.366 c 0,7.324 -2.058,12.894 -6.174,16.711 -3.806,3.529 -9.141,5.406 -15.963,5.672 -0.556,0.021 -1.102,0.054 -1.677,0.054 -4.312,0 -7.972,-0.621 -10.976,-1.862 -3.006,-1.241 -5.456,-2.994 -7.35,-5.26 -1.896,-2.265 -3.268,-4.965 -4.116,-8.1 -0.85,-3.134 -1.274,-6.594 -1.274,-10.381 v -9.515 -3.799 c 0,-3.785 0.424,-7.246 1.274,-10.38 0.848,-3.133 2.22,-5.833 4.116,-8.1 1.895,-2.265 4.344,-4.018 7.35,-5.26 3.004,-1.241 6.664,-1.862 10.976,-1.862 8.166,0 14.127,1.738 17.885,5.213 3.756,3.477 5.699,8.504 5.831,15.082 h -12.74 c -0.132,-3.04 -1.21,-5.384 -3.234,-7.029 -2.026,-1.644 -4.542,-2.467 -7.546,-2.467 -2.156,0 -3.969,0.373 -5.439,1.117 -1.47,0.745 -2.663,1.754 -3.577,3.026 -0.916,1.273 -1.568,2.732 -1.96,4.375 -0.392,1.646 -0.588,3.368 -0.588,5.167 v 4.916 10.353 c 0,1.801 0.179,3.538 0.539,5.214 0.358,1.676 0.98,3.165 1.862,4.469 0.882,1.303 2.041,2.343 3.479,3.119 1.436,0.777 3.266,1.164 5.488,1.164 0.565,0 1.103,-0.026 1.628,-0.064 2.932,-0.216 5.235,-1.028 6.898,-2.449 1.96,-1.676 2.94,-4.282 2.94,-7.82 v -2.7 h -12.74 v -11.172 h 25.088 v 12.568 z m 52.92,-30.444 h -29.597 v 9.375 5.707 h 25.088 v 9.869 h -25.088 v 16.479 h 29.597 v 10.334 H 343.37 V 92.369 73.217 h 41.944 v 10.334 z m 55.762,19.762 v 8.82 c 0,3.415 -0.392,6.596 -1.176,9.543 -0.784,2.949 -2.075,5.525 -3.871,7.728 -1.798,2.204 -4.182,3.926 -7.154,5.167 -2.974,1.241 -6.648,1.862 -11.024,1.862 -4.116,0 -7.678,-0.575 -10.683,-1.722 -3.006,-1.148 -5.473,-2.777 -7.398,-4.888 -1.929,-2.109 -3.35,-4.655 -4.264,-7.634 -0.915,-2.979 -1.372,-6.331 -1.372,-10.055 V 98.54 c 0,-3.724 0.425,-7.215 1.274,-10.474 0.849,-3.259 2.221,-6.082 4.116,-8.472 1.894,-2.389 4.344,-4.267 7.35,-5.633 3.005,-1.364 6.664,-2.048 10.977,-2.048 4.508,0 8.264,0.684 11.27,2.048 3.004,1.366 5.39,3.244 7.154,5.633 1.764,2.39 3.004,5.199 3.724,8.425 0.718,3.228 1.078,6.735 1.078,10.521 v 4.773 z' style='fill:#006699' />
+												</g>
+											</g>
+										</svg>
+									</a>
+								</td>
+							</tr>
+							<tr>
+								<td style='vertical-align:bottom; text-align:left;' >
+									<p style='white-space:nowrap'>Range of timestamps:<br />
+										<xsl:call-template name='timeStampFormatter'>
+											<xsl:with-param name='timeStamp' select='Module[LogEntry]/LogEntry[1]/@Time' />
+										</xsl:call-template>
+										<br />
+										<xsl:call-template name='timeStampFormatter'>
+											<xsl:with-param name='timeStamp' select='Module[LogEntry][last()]/LogEntry[last()]/@Time' />
+											<xsl:with-param name='n-decimals' select='0' />
+										</xsl:call-template>
+									</p>
+								</td>
+							</tr>
+						</table>
+						<div>
+							<noscript>
+								<div style='position:absolute; left:0px; right:0px; bottom:1ex; text-align:center; color:red; font-weight:bold'>
+									Javascript is deactivated. <br /> Dynamic features cannot be provided.
+								</div>
+							</noscript>
+
+							<div class='flyOut'>
+								<xsl:value-of select='count(Module/LogEntry)'/> records from <xsl:value-of select='count(Module)'/>
+								<xsl:choose>
+									<xsl:when test='count(Module) &gt; 1'> runs &#8711;</xsl:when>
+									<xsl:otherwise> run &#8711;</xsl:otherwise>
+								</xsl:choose>
+								<div class='flyer'>
+									<xsl:for-each select='Module'>
+										<span style='margin:auto; float:left'>
+											<a>
+												<xsl:attribute name='href'>
+													<xsl:value-of select="concat( '#', Name, position() )"/>
+												</xsl:attribute>
+												<xsl:attribute name='class'>
+													<xsl:value-of select="concat( 'module_', substring-after(Name,'opals'))"/>
+												</xsl:attribute>
+												<xsl:variable name='time'>
+													<xsl:if test='LogEntry/@Time'>
+														<xsl:text>&#8194;Start:&#8194;</xsl:text>
+														<xsl:call-template name='timeStampFormatter'>
+															<xsl:with-param name='timeStamp' select='LogEntry/@Time' />
+															<xsl:with-param name='n-decimals' select='0' />
+														</xsl:call-template>
+													</xsl:if>
+												</xsl:variable>
+												<xsl:attribute name='title'>
+													<xsl:value-of select="concat( position(), '. ', substring-after(Name,'opals'), $time )" />
+												</xsl:attribute>
+												<xsl:value-of select="concat( position(), '. ', substring-after(Name,'opals') )"/>
+											</a>
+											<span style='white-space: pre'><xsl:text>&#09;</xsl:text></span>
+										</span>
+									</xsl:for-each>
+								</div>
+							</div>
+
+							<div class='flyOut'>
+								Max. Log Level &#8711;
+								<div class='flyer'>
+									<table align='center'>
+										<tr align='center' valign='middle' >
+											<td style='width:10px'><button type='button' onclick='logLevelDecrement()'> <strong>&#8659;</strong></button></td>
+											<td style='width:90px'><span id='maxLogLevelValue'> loading... </span></td>
+											<td style='width:10px'><button type='button' onclick='logLevelIncrement()'> <strong>&#8657;</strong> </button></td>
+										</tr>
+									</table>
+								</div>
+							</div>
+
+							<div id='ThreadFlyout' class='flyOut'>
+								Threads shown &#8711;
+								<div class='flyer'>
+									<select style='text-align:right' id='SelectThreads' size='5' onchange='threadsAltered()' multiple='1'	/>
+								</div>
+							</div>
+
+							<div id='ModuleFilterFlyout' class='flyOut'>
+								Modules shown &#8711;
+								<div class='flyer'>
+									<select style='text-align:right' id='SelectModules' onchange='modulesAltered()' multiple='multiple'	>
+									<xsl:variable name='sizeModules' select='count(Module/Name[not(.=preceding::*)])' />
+										<xsl:attribute name='size'>
+											<xsl:value-of select='$sizeModules'/>
+										</xsl:attribute>
+										<xsl:for-each select='Module/Name[not(.=preceding::*)]'>
+											<xsl:variable name='nameModule' select='substring-after(.,"opals")' />
+											<option selected='selected'>
+												<xsl:attribute name='value'>
+													<xsl:value-of select='$nameModule'/>
+												</xsl:attribute>
+												<xsl:value-of select='$nameModule' />
+											</option>
+										</xsl:for-each>
+									</select>
+								</div>
+							</div>
+
+							<xsl:if test="count(Module[LogEntry/@Level='warning'])">
+								<div class='flyOut' style='float:right; direction:rtl'>
+									<div style='color:darkred; direction:ltr'>Warnings! &#8711;</div>
+									<div class='flyer' style='direction:ltr'>
+										<xsl:for-each select='Module'>
+											<xsl:variable name='idxModule' select='position()' />
+											<xsl:variable name='nameModule' select="substring-after(Name,'opals')" />
+											<xsl:for-each select='LogEntry'>
+												<xsl:if test="@Level='warning'" >
+													<span style='margin:auto; float:left'>
+														<a>
+															<xsl:attribute name='href'>
+																<xsl:value-of select="concat( '#', 'Log_', $idxModule, '_', position() )"/>
+															</xsl:attribute>
+															<xsl:value-of select="concat( $idxModule, '. ', $nameModule )"/>
+														</a>
+														<span style='white-space: pre'><xsl:text>&#09;</xsl:text></span>
+													</span>
+												</xsl:if>
+											</xsl:for-each>
+										</xsl:for-each>
+									</div>
+								</div>
+							</xsl:if>
+
+							<xsl:if test="count(Module[LogEntry/@Level='error'])">
+								<div class='flyOut' style='float:right; direction:rtl'>
+									<div style='color:red; font-weight:bold; direction:ltr'>Errors! &#8711;</div>
+									<div class='flyer' style='direction:ltr'>
+										<xsl:for-each select='Module'>
+											<xsl:variable name='idxModule' select='position()' />
+											<xsl:variable name='nameModule' select="substring-after(Name,'opals')" />
+											<xsl:for-each select='LogEntry'>
+												<xsl:if test="@Level='error'" >
+													<span style='margin:auto; float:left'>
+														<a>
+															<xsl:attribute name='href'>
+																<xsl:value-of select="concat( '#', 'Log_', $idxModule, '_', position() )"/>
+															</xsl:attribute>
+															<xsl:value-of select="concat( $idxModule, '. ', $nameModule )"/>
+														</a>
+														<span style='white-space: pre'><xsl:text>&#09;</xsl:text></span>
+													</span>
+												</xsl:if>
+											</xsl:for-each>
+										</xsl:for-each>
+									</div>
+								</div>
+							</xsl:if>
+
+						</div>
+
+					</div>
+				</div>
+
+				<div id='data'>
+					<div class='top'>
+						<xsl:apply-templates select='Module' />
+						<xsl:apply-templates select='NextLogArchive' />
+					</div>
+				</div>
+			</body>
+		</html>
+	</xsl:template>
+
+	<xsl:template name='timeStampFormatter'>
+		<xsl:param name='timeStamp' />
+		<xsl:param name='n-decimals' />
+		<xsl:choose>
+			<xsl:when test="contains($timeStamp, '.')">
+				<xsl:choose>
+					<xsl:when test='$n-decimals &gt; 0'>
+						<xsl:value-of select="concat( substring-before( $timeStamp, '.'), '.', substring( substring-after( $timeStamp, '.'), 1, $n-decimals ) )" />
+					</xsl:when>
+					<xsl:otherwise>
+						<xsl:value-of select="substring-before( $timeStamp, '.')" />
+					</xsl:otherwise>
+				</xsl:choose>
+			</xsl:when>
+			<xsl:otherwise>
+				<xsl:value-of select='$timeStamp' />
+			</xsl:otherwise>
+		</xsl:choose>
+	</xsl:template>
+
+	<xsl:template match='NextLogArchive'>
+		<br/><hr style='width:100%'/><br/>
+		<h2>
+			Older log records can be found
+			<a>
+				<xsl:attribute name='href'>
+					<xsl:value-of select='text()'/>
+				</xsl:attribute>
+				here
+			</a>
+		</h2>
+	</xsl:template>
+
+	<xsl:template match='Module'>
+		<xsl:variable name='idxModule' select='position()' />
+		<xsl:variable name='moduleType' select="concat( 'module_', substring-after(Name, 'opals'))"/>
+		<div>
+		<xsl:attribute name='class'>
+			<xsl:value-of select='$moduleType'/>
+		</xsl:attribute>
+		<h2> <xsl:value-of select='$idxModule'/>. Module <xsl:value-of select='Name'/>
+			<span class='link'>
+				<xsl:attribute name='id'>
+					<xsl:value-of select='concat( Name, $idxModule )'/>
+				</xsl:attribute>
+			</span>
+		</h2>
+		<p>Version <xsl:value-of select='Version'/> </p>
+		<p>Licensed to: <xsl:value-of select='License'/></p><br/>
+		<xsl:if test='count( Parameters/Specific/Parameter ) + count( Parameters/Common/Parameter ) + count( Parameters/Global/Parameter ) > 0' >
+			<div>
+				<table title='Parameter values right before the module run' align='center'>
+					<caption>Parameters</caption>
+					<thead>
+						<tr><th>Name</th><th>Value</th><th>Type</th><th>Origin</th></tr>
+					</thead>
+					<tbody>
+						<xsl:apply-templates select='Parameters/Specific'>
+							<xsl:with-param name='nameprefix' select='concat( Name, $idxModule )' />
+						</xsl:apply-templates>
+					</tbody>
+					<xsl:call-template name='commons'>
+						<xsl:with-param name='nameprefix' select='concat( Name, $idxModule )' />
+						<xsl:with-param name='name' select="'Commons'" />
+						<xsl:with-param name='options' select='Parameters/Common/Parameter' />
+					</xsl:call-template>
+					<xsl:call-template name='commons'>
+						<xsl:with-param name='nameprefix' select='concat( Name, $idxModule )' />
+						<xsl:with-param name='name' select="'Globals'" />
+						<xsl:with-param name='options' select='Parameters/Global/Parameter' />
+					</xsl:call-template>
+					<tbody>
+						<tr><td class='commons-capt' colspan='4' >Working directory</td></tr>
+					</tbody>
+					<tbody>
+						<tr><td colspan='4' ><xsl:value-of select='WorkDir'/></td></tr>
+					</tbody>
+					<tbody>
+						<tr><td class='commons-capt' colspan='4' >Module path</td></tr>
+					</tbody>
+					<tbody>
+						<tr><td colspan='4' ><xsl:value-of select='ModulePath'/></td></tr>
+					</tbody>
+				</table>
+			</div>
+		</xsl:if>
+
+		<table	class='Log' title='Logs emitted during the module run' style='width:100%; text-align:center; table-layout:fixed'>
+		<caption>Log</caption>
+			<tr>
+				<th style='width:160px'>Timestamp</th>
+				<th style='width:70px' >Level</th>
+				<th style='display:none' >LevelHidden</th>
+				<th style='width:50px'>Thread</th>
+				<th>Message</th>
+			</tr>
+			<xsl:choose>
+				<xsl:when test='count(LogEntry) = 0'> <tr><td colspan='5'>No entries</td></tr></xsl:when>
+				<xsl:otherwise>
+					<xsl:for-each select='LogEntry'>
+						<tr>
+							<xsl:attribute name='style'>
+								<xsl:choose>
+									<xsl:when test="@Level='debug'">color:#848484</xsl:when>
+									<xsl:when test="@Level='verbose'">color:#424242</xsl:when>
+									<xsl:when test="@Level='info'">color:black</xsl:when>
+									<xsl:when test="@Level='warning'">color:darkred</xsl:when>
+									<xsl:when test="@Level='error'">color:red</xsl:when>
+								</xsl:choose>
+							</xsl:attribute>
+							<td>
+								<xsl:attribute name='title'>Log record #<xsl:value-of select='position()'/></xsl:attribute>
+								<xsl:call-template name='timeStampFormatter'>
+									<xsl:with-param name='timeStamp' select='@Time' />
+									<xsl:with-param name='n-decimals' select='1' />
+								</xsl:call-template>
+							</td>
+							<td>
+								<xsl:if test="@Level='warning' or @Level='error'">
+									<div class='link'>
+										<xsl:attribute name='id'>
+											<xsl:value-of select="concat( 'Log_', $idxModule, '_', position() )" />
+										</xsl:attribute>
+									</div>
+								</xsl:if>
+								<xsl:value-of select='@Level' />
+							</td>
+							<td style='display:none'>
+							<xsl:choose>
+								<xsl:when test="@Level='debug'">4</xsl:when>
+								<xsl:when test="@Level='verbose'">3</xsl:when>
+								<xsl:when test="@Level='info'">2</xsl:when>
+								<xsl:when test="@Level='warning'">1</xsl:when>
+								<xsl:when test="@Level='error'">0</xsl:when>
+							</xsl:choose>
+							</td>
+							<td><xsl:value-of select='@Thread'/></td>
+							<td>
+								<xsl:attribute name='class'>
+									<xsl:value-of select='concat( "logmsg ", @Class )' />
+								</xsl:attribute>
+								<xsl:copy-of select='node()' />
+							</td>
+						</tr>
+					</xsl:for-each>
+				</xsl:otherwise>
+			</xsl:choose>
+		</table>
+		<xsl:if test='position() != last()' >
+			<br/><hr style='width:100%'/><br/>
+		</xsl:if>
+		</div>
+	</xsl:template>
+
+	<xsl:template name='commons'>
+		<xsl:param name='nameprefix' />
+		<xsl:param name='name' />
+		<xsl:param name='options' />
+		<xsl:variable name='switchId' select="concat( $nameprefix, $name, 'Switch' )" />
+		<xsl:variable name='bodyId'   select="concat( $nameprefix, $name, 'Body' )" />
+		<tbody>
+			<tr>
+				<td class='commons-capt' title='Parameters present in all modules' colspan='4' >
+					<button class='commons-capt'>
+						<xsl:attribute name='onclick'>
+							<xsl:value-of select="concat( 'showHideTableBody( &quot;', $bodyId, '&quot;, &quot;', $switchId, '&quot; )' )" />
+						</xsl:attribute>
+						<span>
+							<xsl:attribute name='id'>
+								<xsl:value-of select='$switchId' />
+							</xsl:attribute>
+							+
+						</span>
+						<xsl:value-of select='$name' />
+					</button>
+				</td>
+			</tr>
+		</tbody>
+		<tbody style='display:none'>
+			<xsl:attribute name='id'>
+				<xsl:value-of select='$bodyId'/>
+			</xsl:attribute>
+			<xsl:apply-templates select='$options'>
+				<xsl:with-param name='nameprefix' select='concat( $nameprefix, $name )' />
+			</xsl:apply-templates>
+		</tbody>
+	</xsl:template>
+
+	<xsl:template match='Parameter'>
+		<xsl:param name='nameprefix' />
+		<xsl:variable name='idxParam' select='position()' />
+		<xsl:variable name='switchId' select="concat( $nameprefix, 'Switch', $idxParam )" />
+		<xsl:variable name='spanId'   select="concat( $nameprefix, 'Span', $idxParam )" />
+		<tr>
+			<td><xsl:value-of select='@Name'/></td>
+			<td>
+				<div style='max-height:10em; overflow:hidden; position:relative'>
+					<xsl:attribute name='id'>
+						<xsl:value-of select='$spanId'/>
+					</xsl:attribute>
+					<button class='commons-capt' style='position:absolute; bottom:0; right:0'>
+						<xsl:attribute name='onclick'>
+							<xsl:value-of select="concat( 'showHideLongValue( &quot;', $spanId, '&quot;, &quot;', $switchId, '&quot; )' )" />
+						</xsl:attribute>
+						<span>
+							<xsl:attribute name='id'>
+								<xsl:value-of select='$switchId' />
+							</xsl:attribute>
+							&#187;&#187;&#187;
+						</span>
+					</button>
+					<xsl:for-each select='Val'>
+						<xsl:if test='position() &gt; 1'>
+							<span style='color:silver;'>
+								&#160;&#124;&#160;
+							</span>
+						</xsl:if>
+						<xsl:value-of select='.' />
+					</xsl:for-each>
+				</div>
+			</td>
+			<td><xsl:value-of select='@Type'/></td>
+			<td class='narrow'><xsl:attribute name='title'><xsl:value-of select='@Src'/></xsl:attribute><xsl:value-of select='@Src'/></td>
+		</tr>
+	</xsl:template>
+
+	<xsl:template match='Node'>
+		<xsl:param name='nameprefix' />
+		<xsl:variable name='idxNode'  select='position()' />
+		<xsl:variable name='switchId' select="concat( $nameprefix, 'Switch', $idxNode )" />
+		<xsl:variable name='spanId'   select="concat( $nameprefix, 'Span', $idxNode )" />
+		<tr>
+			<td colspan='4'>
+				<xsl:value-of select='@Name'/>
+				<table align='center' style='width:100%'>
+					<tbody>
+						<xsl:apply-templates>
+							<xsl:with-param name='nameprefix' select='concat( nameprefix, $idxNode )' />
+						</xsl:apply-templates>
+					</tbody>
+				</table>
+			</td>
+		</tr>
+	</xsl:template>
+
+	<!-- logging data -->
+	<opals:Log>
+		<Module>
+			<Name>opalsImport</Name>
+			<Version>2.3.2.0 compiled on May 28 2019 01:12:12</Version>
+			<License>OPALS DEMO MODE, For a full version please contact, Department of Geodesy and Geoinformation (GEO), Vienna University of Technology, Gußhausstraße 27-29, 1040 Vienna, Austria, http://www.geo.tuwien.ac.at/</License>
+			<LogEntry Level="warning" Time="2023-01-12 11:40:32.483060" Thread="1">Licence expired</LogEntry>
+			<LogEntry Level="warning" Time="2023-01-12 11:40:32.483060" Thread="1">Switching to DEMO mode</LogEntry>
+			<LogEntry Level="verbose" Time="2023-01-12 11:40:32.483060" Thread="1">Reading parameter values from configuration file: C:\Program Files\opals_2.3.2\cfg\opals.cfg</LogEntry>
+			<LogEntry Level="verbose" Time="2023-01-12 11:40:32.528824" Thread="1">Unused entries in configuration file &#34;C:\Program Files\opals_2.3.2\cfg\opals.cfg&#34;: opalsGeorefApprox.paramMapping obsTrafPars=opalsLSM.outTrafPars | opalsRadioCal.paramMapping radioCal=opalsRadioCal.radioCal;splitByAttribute=opalsRadioCal.splitByAttribute | opalsICP.outParamFile icpOutTrafPars.xml </LogEntry>
+			<LogEntry Level="verbose" Time="2023-01-12 11:40:32.528824" Thread="1">Configuration file not accessible: C:\Users\micha\opals\opals.cfg</LogEntry>
+			<LogEntry Level="verbose" Time="2023-01-12 11:40:32.528824" Thread="1">Configuration file not accessible: E:\NATUR_CUNI\_DP\code\opals.cfg</LogEntry>
+			<LogEntry Level="info" Time="2023-01-12 11:40:32.667424" Thread="1">Running opalsImport ...</LogEntry>
+			<LogEntry Level="info" Time="2023-01-12 11:40:32.667424" Thread="1">The binary  file &#39;E:/NATUR_CUNI\_DP\data\LAZ\ahk_uls_full.las&#39; was recognised as LAS (iformat=las)</LogEntry>
+			<WorkDir>E:\NATUR_CUNI\_DP\code</WorkDir>
+			<ModulePath>C:\Program Files\opals_2.3.2\opals\Import.pyd</ModulePath>
+			<Parameters>
+				<Specific>
+					<Parameter Name='inFile' Type='Vector&#60;Path&#62;' Src='interFace' Opt='mandatory'><Val>E:\NATUR_CUNI\_DP\data\LAZ\ahk_uls_full.las</Val></Parameter>
+					<Parameter Name='iFormat' Type='Vector&#60;String&#62;' Src='estimated' Opt='mandatory'><Val>las</Val></Parameter>
+					<Parameter Name='trjFile' Type='Vector&#60;Path&#62;' Src='unknown' Opt='optional'></Parameter>
+					<Parameter Name='tFormat' Type='Vector&#60;String&#62;' Src='estimated' Opt='mandatory'></Parameter>
+					<Parameter Name='outFile' Type='Path' Src='interFace' Opt='mandatory'><Val>E:\NATUR_CUNI\_DP\data\LAZ\odm\ahk_uls_full.odm</Val></Parameter>
+					<Parameter Name='filter' Type='String' Src='unknown' Opt='optional'></Parameter>
+					<Parameter Name='trafo' Type='TrafPars3dAffine' Src='unknown' Opt='optional'></Parameter>
+					<Parameter Name='storeOrder' Type='bool' Src='unknown' Opt='optional'></Parameter>
+					<Parameter Name='tilePointCount' Type='int' Src='internalDefault' Opt='mandatory'><Val>200000</Val></Parameter>
+					<Parameter Name='tileSize' Type='double' Src='unknown' Opt='optional'></Parameter>
+					<Parameter Name='storeBeamInfo' Type='Vector&#60;BeamInfo&#62;' Src='internalDefault' Opt='mandatory'><Val>BeamVector</Val></Parameter>
+					<Parameter Name='mergePolygon' Type='MergePolygonMode' Src='internalDefault' Opt='mandatory'><Val>safe</Val></Parameter>
+				</Specific>
+				<Common>
+					<Parameter Name='nbThreads' Type='unsigned int' Src='internalDefault' Opt='mandatory'><Val>8</Val></Parameter>
+					<Parameter Name='screenLogLevel' Type='LogLevel' Src='interFace' Opt='optional'><Val>warning</Val></Parameter>
+					<Parameter Name='fileLogLevel' Type='LogLevel' Src='internalDefault' Opt='optional'><Val>verbose</Val></Parameter>
+					<Parameter Name='lineBufferedScreenLog' Type='bool' Src='internalDefault' Opt='mandatory'><Val>0</Val></Parameter>
+					<Parameter Name='logFile' Type='Path' Src='internalDefault' Opt='optional'><Val>opalsLog.xml</Val></Parameter>
+					<Parameter Name='cfgFile' Type='Path' Src='unknown' Opt='optional'></Parameter>
+					<Parameter Name='paramMapping' Type='String' Src='internalDefault' Opt='mandatory'><Val></Val></Parameter>
+					<Parameter Name='inParamFiles' Type='Vector&#60;Path&#62;' Src='unknown' Opt='optional'></Parameter>
+					<Parameter Name='outParamFile' Type='Path' Src='unknown' Opt='optional'></Parameter>
+					<Parameter Name='scope' Type='String' Src='unknown' Opt='optional'></Parameter>
+					<Parameter Name='deleteEmptyOutFile' Type='bool' Src='internalDefault' Opt='optional'><Val>0</Val></Parameter>
+				</Common>
+				<Global>
+					<Parameter Name='force_coord_ref_sys' Type='bool' Src='internalDefault' Opt='optional'><Val>0</Val></Parameter>
+					<Parameter Name='coord_ref_sys' Type='String' Src='unknown' Opt='optional'></Parameter>
+					<Parameter Name='coord_system' Type='String' Src='unknown' Opt='optional'></Parameter>
+					<Parameter Name='points_in_memory' Type='unsigned int' Src='internalDefault' Opt='optional'><Val>4000000</Val></Parameter>
+					<Parameter Name='max_log_file_mb' Type='unsigned int' Src='internalDefault' Opt='mandatory'><Val>10</Val></Parameter>
+					<Parameter Name='oformat_grid' Type='String' Src='internalDefault' Opt='mandatory'><Val>GTiff</Val></Parameter>
+					<Parameter Name='oformat_vector' Type='String' Src='internalDefault' Opt='mandatory'><Val>shape</Val></Parameter>
+					<Parameter Name='oformat_tin' Type='String' Src='internalDefault' Opt='mandatory'><Val>REB</Val></Parameter>
+					<Parameter Name='oformat_lidar' Type='String' Src='internalDefault' Opt='mandatory'><Val>las</Val></Parameter>
+					<Parameter Name='data_type_grid' Type='RasterDataType' Src='internalDefault' Opt='mandatory'><Val>float32</Val></Parameter>
+					<Parameter Name='create_option' Type='Vector&#60;String&#62;' Src='C:\Program Files\opals_2.3.2\cfg\opals.cfg' Opt='optional'><Val>BIGTIFF=IF_NEEDED</Val><Val>TFW=NO</Val><Val>TILED=YES</Val><Val>COMPRESS=LZW</Val><Val>PROFILE=GDALGeoTIFF</Val><Val>BLOCKXSIZE=64</Val><Val>BLOCKYSIZE=64</Val><Val>DECIMAL_PRECISION=8</Val></Parameter>
+					<Parameter Name='postfix_z' Type='String' Src='internalDefault' Opt='mandatory'><Val>_z</Val></Parameter>
+					<Parameter Name='postfix_attribute' Type='String' Src='internalDefault' Opt='mandatory'><Val>_%s</Val></Parameter>
+					<Parameter Name='postfix_min' Type='String' Src='internalDefault' Opt='mandatory'><Val>_min</Val></Parameter>
+					<Parameter Name='postfix_max' Type='String' Src='internalDefault' Opt='mandatory'><Val>_max</Val></Parameter>
+					<Parameter Name='postfix_range' Type='String' Src='internalDefault' Opt='mandatory'><Val>_range</Val></Parameter>
+					<Parameter Name='postfix_nmin' Type='String' Src='internalDefault' Opt='mandatory'><Val>_nmin%d</Val></Parameter>
+					<Parameter Name='postfix_nmax' Type='String' Src='internalDefault' Opt='mandatory'><Val>_nmax%d</Val></Parameter>
+					<Parameter Name='postfix_rms' Type='String' Src='internalDefault' Opt='mandatory'><Val>_rms</Val></Parameter>
+					<Parameter Name='postfix_stdDev' Type='String' Src='internalDefault' Opt='mandatory'><Val>_stdDev</Val></Parameter>
+					<Parameter Name='postfix_var' Type='String' Src='internalDefault' Opt='mandatory'><Val>_var</Val></Parameter>
+					<Parameter Name='postfix_stdDevMad' Type='String' Src='internalDefault' Opt='mandatory'><Val>_stdDevMAD</Val></Parameter>
+					<Parameter Name='postfix_mean' Type='String' Src='internalDefault' Opt='mandatory'><Val>_mean</Val></Parameter>
+					<Parameter Name='postfix_median' Type='String' Src='internalDefault' Opt='mandatory'><Val>_median</Val></Parameter>
+					<Parameter Name='postfix_sum' Type='String' Src='internalDefault' Opt='mandatory'><Val>_sum</Val></Parameter>
+					<Parameter Name='postfix_minority' Type='String' Src='internalDefault' Opt='mandatory'><Val>_minority</Val></Parameter>
+					<Parameter Name='postfix_majority' Type='String' Src='internalDefault' Opt='mandatory'><Val>_majority</Val></Parameter>
+					<Parameter Name='postfix_entropy' Type='String' Src='internalDefault' Opt='mandatory'><Val>_entropy</Val></Parameter>
+					<Parameter Name='postfix_center' Type='String' Src='internalDefault' Opt='mandatory'><Val>_center</Val></Parameter>
+					<Parameter Name='postfix_pdens' Type='String' Src='internalDefault' Opt='mandatory'><Val>_pdens</Val></Parameter>
+					<Parameter Name='postfix_pcount' Type='String' Src='internalDefault' Opt='mandatory'><Val>_pcount</Val></Parameter>
+					<Parameter Name='postfix_quantile' Type='String' Src='C:\Program Files\opals_2.3.2\cfg\opals.cfg' Opt='mandatory'><Val>_q%.2f</Val></Parameter>
+					<Parameter Name='postfix_sigmaz' Type='String' Src='internalDefault' Opt='mandatory'><Val>_sigmaZ</Val></Parameter>
+					<Parameter Name='postfix_sigma0' Type='String' Src='internalDefault' Opt='mandatory'><Val>_sigma0</Val></Parameter>
+					<Parameter Name='postfix_excen' Type='String' Src='internalDefault' Opt='mandatory'><Val>_excen</Val></Parameter>
+					<Parameter Name='postfix_slope' Type='String' Src='internalDefault' Opt='mandatory'><Val>_slope</Val></Parameter>
+					<Parameter Name='postfix_slpDeg' Type='String' Src='internalDefault' Opt='mandatory'><Val>_slpDeg</Val></Parameter>
+					<Parameter Name='postfix_slpRad' Type='String' Src='internalDefault' Opt='mandatory'><Val>_slpRad</Val></Parameter>
+					<Parameter Name='postfix_expos' Type='String' Src='internalDefault' Opt='mandatory'><Val>_expos</Val></Parameter>
+					<Parameter Name='postfix_nx' Type='String' Src='internalDefault' Opt='mandatory'><Val>_nx</Val></Parameter>
+					<Parameter Name='postfix_ny' Type='String' Src='internalDefault' Opt='mandatory'><Val>_ny</Val></Parameter>
+					<Parameter Name='postfix_openness' Type='String' Src='internalDefault' Opt='mandatory'><Val>_open</Val></Parameter>
+					<Parameter Name='column_name_alias' Type='Vector&#60;ColumnNameAlias&#62;' Src='C:\Program Files\opals_2.3.2\cfg\opals.cfg' Opt='optional'><Val>GPSTime:t </Val><Val>Amplitude:amp </Val><Val>EchoWidth:ew </Val><Val>BeamVectorX:beamx </Val><Val>BeamVectorY:beamy </Val><Val>BeamVectorZ:beamz </Val><Val>NormalX:nx </Val><Val>NormalY:ny </Val><Val>NormalZ:nz </Val></Parameter>
+					<Parameter Name='postfix_kmin' Type='String' Src='internalDefault' Opt='mandatory'><Val>_kmin</Val></Parameter>
+					<Parameter Name='postfix_kmax' Type='String' Src='internalDefault' Opt='mandatory'><Val>_kmax</Val></Parameter>
+					<Parameter Name='postfix_kmean' Type='String' Src='internalDefault' Opt='mandatory'><Val>_kmean</Val></Parameter>
+					<Parameter Name='postfix_kgauss' Type='String' Src='internalDefault' Opt='mandatory'><Val>_kgauss</Val></Parameter>
+					<Parameter Name='postfix_kminDir' Type='String' Src='internalDefault' Opt='mandatory'><Val>_kminDir</Val></Parameter>
+					<Parameter Name='postfix_kmaxDir' Type='String' Src='internalDefault' Opt='mandatory'><Val>_kmaxDir</Val></Parameter>
+					<Parameter Name='postfix_absKmaxDir' Type='String' Src='internalDefault' Opt='mandatory'><Val>_absKmaxDir</Val></Parameter>
+					<Parameter Name='postfix_precision' Type='String' Src='C:\Program Files\opals_2.3.2\cfg\opals.cfg' Opt='mandatory'><Val>_prec</Val></Parameter>
+				</Global>
+			</Parameters>
+			<LogEntry Level="info" Time="2023-01-12 11:40:32.667424" Thread="1">Creating new manager &#39;E:/NATUR_CUNI\_DP\data\LAZ\odm\ahk_uls_full.odm&#39;</LogEntry>
+			<LogEntry Level="info" Time="2023-01-12 11:40:32.675956" Thread="1">Stage 1/1: Import file &#39;E:/NATUR_CUNI\_DP\data\LAZ\ahk_uls_full.las&#39;</LogEntry>
+			<LogEntry Level="verbose" Time="2023-01-12 11:40:32.675956" Thread="1">file &#39;E:/NATUR_CUNI\_DP\data\LAZ\ahk_uls_full.las&#39; does not contain coordinate reference system information</LogEntry>
+			<LogEntry Level="verbose" Time="2023-01-12 11:40:32.675956" Thread="1">global option CRS: </LogEntry>
+			<LogEntry Level="info" Time="2023-01-12 11:40:32.675956" Thread="1">Import as format &#39;LAS&#39;</LogEntry>
+			<LogEntry Level="info" Time="2023-01-12 11:40:32.675956" Thread="1">Import from LAS 1.2, point data record format 3<br /></LogEntry>
+			<LogEntry Level="warning" Time="2023-01-12 11:40:35.536167" Thread="1">Demo limit exceeded during import file &#39;E:/NATUR_CUNI\_DP\data\LAZ\ahk_uls_full.las&#39;</LogEntry>
+			<LogEntry Level="warning" Time="2023-01-12 11:40:35.537677" Thread="1">The output ODM does not contain coordinate reference system information</LogEntry>
+			<LogEntry Level="info" Time="2023-01-12 11:40:35.539308" Thread="1"><table><tr><th>ODM statistics:</th><th></th></tr><tr><td>Filename</td><td>E:/NATUR_CUNI\_DP\data\LAZ\odm\ahk_uls_full.odm</td></tr><tr><td>Number of points</td><td>1000000</td></tr><tr><td>Number of lines</td><td>0</td></tr><tr><td>Number of polygons</td><td>0</td></tr><tr><td>Minimum X-Y-Z</td><td>652196.765 5188591.449  2232.735</td></tr><tr><td>Maximum X-Y-Z</td><td>652583.156 5189240.496  2561.000</td></tr></table></LogEntry>
+			<LogEntry Level="info" Time="2023-01-12 11:40:35.545715" Thread="1"><table><caption>Index statistics</caption><tr><th>geometries</th><th>dim</th><th>type</th><th>depth</th><th>node_count</th><th>leaf_count</th><th>tile_size</th><th>min_#owl</th><th>max_#owl</th><th>mean_#owl</th><th>stddev_#owl</th></tr><tr><td>Points</td><td>2</td><td>tile</td><td>1</td><td>135</td><td>78</td><td>47.125</td><td>1</td><td>82349</td><td>12820.513</td><td>17859.299</td></tr></table></LogEntry>
+			<LogEntry Level="verbose" Time="2023-01-12 11:40:35.594199" Thread="1"><table><tr><th>ODM attribute statistics:</th><th></th><th></th><th></th><th></th><th></th><th></th></tr><tr><td>name</td><td>type</td><td>count</td><td>min</td><td>max</td><td>mean</td><td>sigma</td></tr><tr><td>Amplitude</td><td>float</td><td>1000000</td><td>0</td><td>255</td><td>155.655</td><td>34.6411</td></tr><tr><td>EchoNumber</td><td>unsigned byte</td><td>1000000</td><td>1</td><td>3</td><td>1.00252</td><td>0.0502558</td></tr><tr><td>NrOfEchos</td><td>unsigned byte</td><td>1000000</td><td>1</td><td>3</td><td>1.00492</td><td>0.0701554</td></tr><tr><td>ClassificationFlags</td><td>unsigned byte</td><td>1000000</td><td>0</td><td>0</td><td>0</td><td>0</td></tr><tr><td>ScanDirection</td><td>boolean</td><td>1000000</td><td>-</td><td>-</td><td>-</td><td>-</td></tr><tr><td>EdgeOfFlightLine</td><td>boolean</td><td>1000000</td><td>-</td><td>-</td><td>-</td><td>-</td></tr><tr><td>Classification</td><td>unsigned byte</td><td>1000000</td><td>1</td><td>2</td><td>1.59451</td><td>0.490987</td></tr><tr><td>ScanAngle</td><td>float</td><td>1000000</td><td>0</td><td>0</td><td>0</td><td>0</td></tr><tr><td>UserData</td><td>unsigned byte</td><td>1000000</td><td>0</td><td>0</td><td>0</td><td>0</td></tr><tr><td>PointSourceId</td><td>unsigned short</td><td>1000000</td><td>0</td><td>0</td><td>0</td><td>0</td></tr><tr><td>GPSTime</td><td>double</td><td>1000000</td><td>20510.4</td><td>24160.2</td><td>22314.7</td><td>1277.04</td></tr><tr><td>Red</td><td>unsigned short</td><td>1000000</td><td>0</td><td>42405</td><td>721.167</td><td>4077.96</td></tr><tr><td>Green</td><td>unsigned short</td><td>1000000</td><td>0</td><td>45232</td><td>828.723</td><td>4630.04</td></tr><tr><td>Blue</td><td>unsigned short</td><td>1000000</td><td>0</td><td>45232</td><td>779.227</td><td>4420.28</td></tr><tr><td>Id</td><td>64bit integer</td><td>1000000</td><td>-844401307811840</td><td>3096244071172573</td><td>5.88671e+14</td><td>8.8595e+14</td></tr><tr><td>FileId</td><td>unsigned short</td><td>1000000</td><td>1</td><td>1</td><td>1</td><td>0</td></tr><tr><td>LayerId</td><td>unsigned short</td><td>1000000</td><td>0</td><td>0</td><td>0</td><td>0</td></tr><tr><td>WinputCode</td><td>unsigned short</td><td>1000000</td><td>30</td><td>30</td><td>30</td><td>6.69747e-15</td></tr><tr><td>StructNr</td><td>unsigned short</td><td>1000000</td><td>0</td><td>0</td><td>0</td><td>0</td></tr></table></LogEntry>
+			<LogEntry Level="info" Time="2023-01-12 11:40:35.626087" Thread="1">Datamanager saved successfully</LogEntry>
+			<LogEntry Level="info" Time="2023-01-12 11:40:35.863417" Thread="1">Running opalsImport took: 00:00:03</LogEntry>
+		</Module>
+		<Module>
+			<Name>opalsCell</Name>
+			<Version>2.3.2.0 compiled on May 28 2019 01:12:12</Version>
+			<License>OPALS DEMO MODE, For a full version please contact, Department of Geodesy and Geoinformation (GEO), Vienna University of Technology, Gußhausstraße 27-29, 1040 Vienna, Austria, http://www.geo.tuwien.ac.at/</License>
+			<LogEntry Level="warning" Time="2023-01-12 11:40:32.528824" Thread="1">Licence expired</LogEntry>
+			<LogEntry Level="warning" Time="2023-01-12 11:40:32.528824" Thread="1">Switching to DEMO mode</LogEntry>
+			<LogEntry Level="verbose" Time="2023-01-12 11:40:32.528824" Thread="1">Reading parameter values from configuration file: C:\Program Files\opals_2.3.2\cfg\opals.cfg</LogEntry>
+			<LogEntry Level="verbose" Time="2023-01-12 11:40:32.569016" Thread="1">Unused entries in configuration file &#34;C:\Program Files\opals_2.3.2\cfg\opals.cfg&#34;: opalsGeorefApprox.paramMapping obsTrafPars=opalsLSM.outTrafPars | opalsRadioCal.paramMapping radioCal=opalsRadioCal.radioCal;splitByAttribute=opalsRadioCal.splitByAttribute | opalsICP.outParamFile icpOutTrafPars.xml </LogEntry>
+			<LogEntry Level="verbose" Time="2023-01-12 11:40:32.569016" Thread="1">Configuration file not accessible: C:\Users\micha\opals\opals.cfg</LogEntry>
+			<LogEntry Level="verbose" Time="2023-01-12 11:40:32.569016" Thread="1">Configuration file not accessible: E:\NATUR_CUNI\_DP\code\opals.cfg</LogEntry>
+			<LogEntry Level="verbose" Time="2023-01-12 11:40:35.911770" Thread="1">Opening data manager ...</LogEntry>
+			<LogEntry Level="verbose" Time="2023-01-12 11:40:35.935752" Thread="1">Done.</LogEntry>
+			<LogEntry Level="info" Time="2023-01-12 11:40:35.975771" Thread="1">Running opalsCell ...</LogEntry>
+			<WorkDir>E:\NATUR_CUNI\_DP\code</WorkDir>
+			<ModulePath>C:\Program Files\opals_2.3.2\opals\Import.pyd</ModulePath>
+			<Parameters>
+				<Specific>
+					<Parameter Name='inFile' Type='Vector&#60;Path&#62;' Src='interFace' Opt='mandatory'><Val>E:\NATUR_CUNI\_DP\data\LAZ\odm\ahk_uls_full.odm</Val></Parameter>
+					<Parameter Name='outFile' Type='Vector&#60;Path&#62;' Src='interFace' Opt='mandatory'><Val>E:\NATUR_CUNI\_DP\data\LAZ\raster\ahk_uls_pdens.tif</Val></Parameter>
+					<Parameter Name='oFormat' Type='String' Src='estimated' Opt='mandatory'><Val>GTiff</Val></Parameter>
+					<Parameter Name='cellSize' Type='Vector&#60;float&#62;' Src='estimated' Opt='mandatory'><Val>1</Val><Val>1</Val></Parameter>
+					<Parameter Name='attribute' Type='String' Src='internalDefault' Opt='mandatory'><Val>z</Val></Parameter>
+					<Parameter Name='feature' Type='Vector&#60;StatFeature&#62;' Src='interFace' Opt='mandatory'><Val>pdens</Val></Parameter>
+					<Parameter Name='limit' Type='GridLimit' Src='unknown' Opt='optional'></Parameter>
+					<Parameter Name='filter' Type='String' Src='interFace' Opt='optional'><Val>Echo[last]</Val></Parameter>
+					<Parameter Name='noData' Type='float' Src='internalDefault' Opt='mandatory'><Val>9999</Val></Parameter>
+					<Parameter Name='multiBand' Type='bool' Src='internalDefault' Opt='optional'><Val>0</Val></Parameter>
+				</Specific>
+				<Common>
+					<Parameter Name='nbThreads' Type='unsigned int' Src='internalDefault' Opt='mandatory'><Val>8</Val></Parameter>
+					<Parameter Name='screenLogLevel' Type='LogLevel' Src='interFace' Opt='optional'><Val>warning</Val></Parameter>
+					<Parameter Name='fileLogLevel' Type='LogLevel' Src='internalDefault' Opt='optional'><Val>verbose</Val></Parameter>
+					<Parameter Name='lineBufferedScreenLog' Type='bool' Src='internalDefault' Opt='mandatory'><Val>0</Val></Parameter>
+					<Parameter Name='logFile' Type='Path' Src='internalDefault' Opt='optional'><Val>opalsLog.xml</Val></Parameter>
+					<Parameter Name='cfgFile' Type='Path' Src='unknown' Opt='optional'></Parameter>
+					<Parameter Name='paramMapping' Type='String' Src='internalDefault' Opt='mandatory'><Val></Val></Parameter>
+					<Parameter Name='inParamFiles' Type='Vector&#60;Path&#62;' Src='unknown' Opt='optional'></Parameter>
+					<Parameter Name='outParamFile' Type='Path' Src='unknown' Opt='optional'></Parameter>
+					<Parameter Name='scope' Type='String' Src='unknown' Opt='optional'></Parameter>
+					<Parameter Name='deleteEmptyOutFile' Type='bool' Src='internalDefault' Opt='optional'><Val>0</Val></Parameter>
+				</Common>
+				<Global>
+					<Parameter Name='force_coord_ref_sys' Type='bool' Src='internalDefault' Opt='optional'><Val>0</Val></Parameter>
+					<Parameter Name='coord_ref_sys' Type='String' Src='unknown' Opt='optional'></Parameter>
+					<Parameter Name='coord_system' Type='String' Src='unknown' Opt='optional'></Parameter>
+					<Parameter Name='points_in_memory' Type='unsigned int' Src='internalDefault' Opt='optional'><Val>4000000</Val></Parameter>
+					<Parameter Name='max_log_file_mb' Type='unsigned int' Src='internalDefault' Opt='mandatory'><Val>10</Val></Parameter>
+					<Parameter Name='oformat_grid' Type='String' Src='internalDefault' Opt='mandatory'><Val>GTiff</Val></Parameter>
+					<Parameter Name='oformat_vector' Type='String' Src='internalDefault' Opt='mandatory'><Val>shape</Val></Parameter>
+					<Parameter Name='oformat_tin' Type='String' Src='internalDefault' Opt='mandatory'><Val>REB</Val></Parameter>
+					<Parameter Name='oformat_lidar' Type='String' Src='internalDefault' Opt='mandatory'><Val>las</Val></Parameter>
+					<Parameter Name='data_type_grid' Type='RasterDataType' Src='internalDefault' Opt='mandatory'><Val>float32</Val></Parameter>
+					<Parameter Name='create_option' Type='Vector&#60;String&#62;' Src='C:\Program Files\opals_2.3.2\cfg\opals.cfg' Opt='optional'><Val>BIGTIFF=IF_NEEDED</Val><Val>TFW=NO</Val><Val>TILED=YES</Val><Val>COMPRESS=LZW</Val><Val>PROFILE=GDALGeoTIFF</Val><Val>BLOCKXSIZE=64</Val><Val>BLOCKYSIZE=64</Val><Val>DECIMAL_PRECISION=8</Val></Parameter>
+					<Parameter Name='postfix_z' Type='String' Src='internalDefault' Opt='mandatory'><Val>_z</Val></Parameter>
+					<Parameter Name='postfix_attribute' Type='String' Src='internalDefault' Opt='mandatory'><Val>_%s</Val></Parameter>
+					<Parameter Name='postfix_min' Type='String' Src='internalDefault' Opt='mandatory'><Val>_min</Val></Parameter>
+					<Parameter Name='postfix_max' Type='String' Src='internalDefault' Opt='mandatory'><Val>_max</Val></Parameter>
+					<Parameter Name='postfix_range' Type='String' Src='internalDefault' Opt='mandatory'><Val>_range</Val></Parameter>
+					<Parameter Name='postfix_nmin' Type='String' Src='internalDefault' Opt='mandatory'><Val>_nmin%d</Val></Parameter>
+					<Parameter Name='postfix_nmax' Type='String' Src='internalDefault' Opt='mandatory'><Val>_nmax%d</Val></Parameter>
+					<Parameter Name='postfix_rms' Type='String' Src='internalDefault' Opt='mandatory'><Val>_rms</Val></Parameter>
+					<Parameter Name='postfix_stdDev' Type='String' Src='internalDefault' Opt='mandatory'><Val>_stdDev</Val></Parameter>
+					<Parameter Name='postfix_var' Type='String' Src='internalDefault' Opt='mandatory'><Val>_var</Val></Parameter>
+					<Parameter Name='postfix_stdDevMad' Type='String' Src='internalDefault' Opt='mandatory'><Val>_stdDevMAD</Val></Parameter>
+					<Parameter Name='postfix_mean' Type='String' Src='internalDefault' Opt='mandatory'><Val>_mean</Val></Parameter>
+					<Parameter Name='postfix_median' Type='String' Src='internalDefault' Opt='mandatory'><Val>_median</Val></Parameter>
+					<Parameter Name='postfix_sum' Type='String' Src='internalDefault' Opt='mandatory'><Val>_sum</Val></Parameter>
+					<Parameter Name='postfix_minority' Type='String' Src='internalDefault' Opt='mandatory'><Val>_minority</Val></Parameter>
+					<Parameter Name='postfix_majority' Type='String' Src='internalDefault' Opt='mandatory'><Val>_majority</Val></Parameter>
+					<Parameter Name='postfix_entropy' Type='String' Src='internalDefault' Opt='mandatory'><Val>_entropy</Val></Parameter>
+					<Parameter Name='postfix_center' Type='String' Src='internalDefault' Opt='mandatory'><Val>_center</Val></Parameter>
+					<Parameter Name='postfix_pdens' Type='String' Src='internalDefault' Opt='mandatory'><Val>_pdens</Val></Parameter>
+					<Parameter Name='postfix_pcount' Type='String' Src='internalDefault' Opt='mandatory'><Val>_pcount</Val></Parameter>
+					<Parameter Name='postfix_quantile' Type='String' Src='C:\Program Files\opals_2.3.2\cfg\opals.cfg' Opt='mandatory'><Val>_q%.2f</Val></Parameter>
+					<Parameter Name='postfix_sigmaz' Type='String' Src='internalDefault' Opt='mandatory'><Val>_sigmaZ</Val></Parameter>
+					<Parameter Name='postfix_sigma0' Type='String' Src='internalDefault' Opt='mandatory'><Val>_sigma0</Val></Parameter>
+					<Parameter Name='postfix_excen' Type='String' Src='internalDefault' Opt='mandatory'><Val>_excen</Val></Parameter>
+					<Parameter Name='postfix_slope' Type='String' Src='internalDefault' Opt='mandatory'><Val>_slope</Val></Parameter>
+					<Parameter Name='postfix_slpDeg' Type='String' Src='internalDefault' Opt='mandatory'><Val>_slpDeg</Val></Parameter>
+					<Parameter Name='postfix_slpRad' Type='String' Src='internalDefault' Opt='mandatory'><Val>_slpRad</Val></Parameter>
+					<Parameter Name='postfix_expos' Type='String' Src='internalDefault' Opt='mandatory'><Val>_expos</Val></Parameter>
+					<Parameter Name='postfix_nx' Type='String' Src='internalDefault' Opt='mandatory'><Val>_nx</Val></Parameter>
+					<Parameter Name='postfix_ny' Type='String' Src='internalDefault' Opt='mandatory'><Val>_ny</Val></Parameter>
+					<Parameter Name='postfix_openness' Type='String' Src='internalDefault' Opt='mandatory'><Val>_open</Val></Parameter>
+					<Parameter Name='column_name_alias' Type='Vector&#60;ColumnNameAlias&#62;' Src='C:\Program Files\opals_2.3.2\cfg\opals.cfg' Opt='optional'><Val>GPSTime:t </Val><Val>Amplitude:amp </Val><Val>EchoWidth:ew </Val><Val>BeamVectorX:beamx </Val><Val>BeamVectorY:beamy </Val><Val>BeamVectorZ:beamz </Val><Val>NormalX:nx </Val><Val>NormalY:ny </Val><Val>NormalZ:nz </Val></Parameter>
+					<Parameter Name='postfix_kmin' Type='String' Src='internalDefault' Opt='mandatory'><Val>_kmin</Val></Parameter>
+					<Parameter Name='postfix_kmax' Type='String' Src='internalDefault' Opt='mandatory'><Val>_kmax</Val></Parameter>
+					<Parameter Name='postfix_kmean' Type='String' Src='internalDefault' Opt='mandatory'><Val>_kmean</Val></Parameter>
+					<Parameter Name='postfix_kgauss' Type='String' Src='internalDefault' Opt='mandatory'><Val>_kgauss</Val></Parameter>
+					<Parameter Name='postfix_kminDir' Type='String' Src='internalDefault' Opt='mandatory'><Val>_kminDir</Val></Parameter>
+					<Parameter Name='postfix_kmaxDir' Type='String' Src='internalDefault' Opt='mandatory'><Val>_kmaxDir</Val></Parameter>
+					<Parameter Name='postfix_absKmaxDir' Type='String' Src='internalDefault' Opt='mandatory'><Val>_absKmaxDir</Val></Parameter>
+					<Parameter Name='postfix_precision' Type='String' Src='C:\Program Files\opals_2.3.2\cfg\opals.cfg' Opt='mandatory'><Val>_prec</Val></Parameter>
+				</Global>
+			</Parameters>
+			<LogEntry Level="info" Time="2023-01-12 11:40:35.991841" Thread="1"><table><tr><th>ODM statistics:</th><th></th></tr><tr><td>Filename</td><td>E:/NATUR_CUNI\_DP\data\LAZ\odm\ahk_uls_full.odm</td></tr><tr><td>Number of points</td><td>1000000</td></tr><tr><td>Number of lines</td><td>0</td></tr><tr><td>Number of polygons</td><td>0</td></tr><tr><td>Minimum X-Y-Z</td><td>652196.765 5188591.449  2232.735</td></tr><tr><td>Maximum X-Y-Z</td><td>652583.156 5189240.496  2561.000</td></tr></table></LogEntry>
+			<LogEntry Level="verbose" Time="2023-01-12 11:40:35.991841" Thread="1">global option CRS: </LogEntry>
+			<LogEntry Level="info" Time="2023-01-12 11:40:36.040605" Thread="1">Stage 1/1: Processing data with 8 thread(s)</LogEntry>
+			<LogEntry Level="info" Time="2023-01-12 11:40:39.090269" Thread="1"><table><tr><th>Raster file</th><th>E:/NATUR_CUNI\_DP\data\LAZ\raster\ahk_uls_pdens.tif</th></tr><tr><td>Nr. valid pixels</td><td>40106</td></tr><tr><td>Nr. columns/rows</td><td>387         650</td></tr><tr><td>Raster size X-Y</td><td>1.000       1.000</td></tr><tr><td>Minimum X-Y-Z</td><td>652197.000 5188591.000     1.000</td></tr><tr><td>Maximum X-Y-Z</td><td>652583.000 5189240.000  1884.000</td></tr></table></LogEntry>
+			<LogEntry Level="info" Time="2023-01-12 11:40:39.312584" Thread="1">Running opalsCell took: 00:00:04</LogEntry>
+		</Module>
+		<Module>
+			<Name>opalsHisto</Name>
+			<Version>2.3.2.0 compiled on May 28 2019 01:12:12</Version>
+			<License>OPALS DEMO MODE, For a full version please contact, Department of Geodesy and Geoinformation (GEO), Vienna University of Technology, Gußhausstraße 27-29, 1040 Vienna, Austria, http://www.geo.tuwien.ac.at/</License>
+			<LogEntry Level="warning" Time="2023-01-12 11:40:32.618730" Thread="1">Licence expired</LogEntry>
+			<LogEntry Level="warning" Time="2023-01-12 11:40:32.618730" Thread="1">Switching to DEMO mode</LogEntry>
+			<LogEntry Level="verbose" Time="2023-01-12 11:40:32.618730" Thread="1">Reading parameter values from configuration file: C:\Program Files\opals_2.3.2\cfg\opals.cfg</LogEntry>
+			<LogEntry Level="verbose" Time="2023-01-12 11:40:32.651051" Thread="1">Unused entries in configuration file &#34;C:\Program Files\opals_2.3.2\cfg\opals.cfg&#34;: opalsGeorefApprox.paramMapping obsTrafPars=opalsLSM.outTrafPars | opalsRadioCal.paramMapping radioCal=opalsRadioCal.radioCal;splitByAttribute=opalsRadioCal.splitByAttribute | opalsICP.outParamFile icpOutTrafPars.xml </LogEntry>
+			<LogEntry Level="verbose" Time="2023-01-12 11:40:32.651051" Thread="1">Configuration file not accessible: C:\Users\micha\opals\opals.cfg</LogEntry>
+			<LogEntry Level="verbose" Time="2023-01-12 11:40:32.651051" Thread="1">Configuration file not accessible: E:\NATUR_CUNI\_DP\code\opals.cfg</LogEntry>
+			<LogEntry Level="verbose" Time="2023-01-12 11:40:39.343134" Thread="1">Opening data source(s) ...</LogEntry>
+			<LogEntry Level="verbose" Time="2023-01-12 11:40:39.360159" Thread="1">Done.</LogEntry>
+			<LogEntry Level="info" Time="2023-01-12 11:40:39.393653" Thread="1">Running opalsHisto ...</LogEntry>
+			<WorkDir>E:\NATUR_CUNI\_DP\code</WorkDir>
+			<ModulePath>C:\Program Files\opals_2.3.2\opals\Import.pyd</ModulePath>
+			<Parameters>
+				<Specific>
+					<Parameter Name='inFile' Type='Vector&#60;Path&#62;' Src='interFace' Opt='mandatory'><Val>E:\NATUR_CUNI\_DP\data\LAZ\odm\ahk_uls_full.odm</Val></Parameter>
+					<Parameter Name='attribute' Type='Vector&#60;String&#62;' Src='internalDefault' Opt='mandatory'><Val>z</Val></Parameter>
+					<Parameter Name='histogram' Type='Vector&#60;HistoStats&#62;' Src='unknown' Opt='output'></Parameter>
+					<Parameter Name='nBins' Type='unsigned int' Src='internalDefault' Opt='optional'><Val>50</Val></Parameter>
+					<Parameter Name='binWidth' Type='float' Src='unknown' Opt='optional'></Parameter>
+					<Parameter Name='sampleRange' Type='float[2]' Src='unknown' Opt='optional'></Parameter>
+					<Parameter Name='densityRange' Type='float[2]' Src='unknown' Opt='optional'></Parameter>
+					<Parameter Name='limit' Type='double[4]' Src='unknown' Opt='optional'></Parameter>
+					<Parameter Name='filter' Type='String' Src='unknown' Opt='optional'></Parameter>
+					<Parameter Name='plotFile' Type='Vector&#60;Path&#62;' Src='interFace' Opt='mandatory'><Val>E:\NATUR_CUNI\_DP\data\LAZ\info\ahk_uls_full_hist.svg</Val></Parameter>
+					<Parameter Name='probabilities' Type='Vector&#60;double&#62;' Src='internalDefault' Opt='mandatory'><Val>0.01</Val><Val>0.05</Val><Val>0.25</Val><Val>0.75</Val><Val>0.9</Val><Val>0.95</Val></Parameter>
+					<Parameter Name='procMode' Type='HistoMode' Src='estimated' Opt='mandatory'><Val>real</Val></Parameter>
+					<Parameter Name='exactComputation' Type='bool' Src='internalDefault' Opt='mandatory'><Val>0</Val></Parameter>
+				</Specific>
+				<Common>
+					<Parameter Name='nbThreads' Type='unsigned int' Src='internalDefault' Opt='mandatory'><Val>8</Val></Parameter>
+					<Parameter Name='screenLogLevel' Type='LogLevel' Src='interFace' Opt='optional'><Val>warning</Val></Parameter>
+					<Parameter Name='fileLogLevel' Type='LogLevel' Src='internalDefault' Opt='optional'><Val>verbose</Val></Parameter>
+					<Parameter Name='lineBufferedScreenLog' Type='bool' Src='internalDefault' Opt='mandatory'><Val>0</Val></Parameter>
+					<Parameter Name='logFile' Type='Path' Src='internalDefault' Opt='optional'><Val>opalsLog.xml</Val></Parameter>
+					<Parameter Name='cfgFile' Type='Path' Src='unknown' Opt='optional'></Parameter>
+					<Parameter Name='paramMapping' Type='String' Src='internalDefault' Opt='mandatory'><Val></Val></Parameter>
+					<Parameter Name='inParamFiles' Type='Vector&#60;Path&#62;' Src='unknown' Opt='optional'></Parameter>
+					<Parameter Name='outParamFile' Type='Path' Src='unknown' Opt='optional'></Parameter>
+					<Parameter Name='scope' Type='String' Src='unknown' Opt='optional'></Parameter>
+					<Parameter Name='deleteEmptyOutFile' Type='bool' Src='internalDefault' Opt='optional'><Val>0</Val></Parameter>
+				</Common>
+				<Global>
+					<Parameter Name='force_coord_ref_sys' Type='bool' Src='internalDefault' Opt='optional'><Val>0</Val></Parameter>
+					<Parameter Name='coord_ref_sys' Type='String' Src='unknown' Opt='optional'></Parameter>
+					<Parameter Name='coord_system' Type='String' Src='unknown' Opt='optional'></Parameter>
+					<Parameter Name='points_in_memory' Type='unsigned int' Src='internalDefault' Opt='optional'><Val>4000000</Val></Parameter>
+					<Parameter Name='max_log_file_mb' Type='unsigned int' Src='internalDefault' Opt='mandatory'><Val>10</Val></Parameter>
+					<Parameter Name='oformat_grid' Type='String' Src='internalDefault' Opt='mandatory'><Val>GTiff</Val></Parameter>
+					<Parameter Name='oformat_vector' Type='String' Src='internalDefault' Opt='mandatory'><Val>shape</Val></Parameter>
+					<Parameter Name='oformat_tin' Type='String' Src='internalDefault' Opt='mandatory'><Val>REB</Val></Parameter>
+					<Parameter Name='oformat_lidar' Type='String' Src='internalDefault' Opt='mandatory'><Val>las</Val></Parameter>
+					<Parameter Name='data_type_grid' Type='RasterDataType' Src='internalDefault' Opt='mandatory'><Val>float32</Val></Parameter>
+					<Parameter Name='create_option' Type='Vector&#60;String&#62;' Src='C:\Program Files\opals_2.3.2\cfg\opals.cfg' Opt='optional'><Val>BIGTIFF=IF_NEEDED</Val><Val>TFW=NO</Val><Val>TILED=YES</Val><Val>COMPRESS=LZW</Val><Val>PROFILE=GDALGeoTIFF</Val><Val>BLOCKXSIZE=64</Val><Val>BLOCKYSIZE=64</Val><Val>DECIMAL_PRECISION=8</Val></Parameter>
+					<Parameter Name='postfix_z' Type='String' Src='internalDefault' Opt='mandatory'><Val>_z</Val></Parameter>
+					<Parameter Name='postfix_attribute' Type='String' Src='internalDefault' Opt='mandatory'><Val>_%s</Val></Parameter>
+					<Parameter Name='postfix_min' Type='String' Src='internalDefault' Opt='mandatory'><Val>_min</Val></Parameter>
+					<Parameter Name='postfix_max' Type='String' Src='internalDefault' Opt='mandatory'><Val>_max</Val></Parameter>
+					<Parameter Name='postfix_range' Type='String' Src='internalDefault' Opt='mandatory'><Val>_range</Val></Parameter>
+					<Parameter Name='postfix_nmin' Type='String' Src='internalDefault' Opt='mandatory'><Val>_nmin%d</Val></Parameter>
+					<Parameter Name='postfix_nmax' Type='String' Src='internalDefault' Opt='mandatory'><Val>_nmax%d</Val></Parameter>
+					<Parameter Name='postfix_rms' Type='String' Src='internalDefault' Opt='mandatory'><Val>_rms</Val></Parameter>
+					<Parameter Name='postfix_stdDev' Type='String' Src='internalDefault' Opt='mandatory'><Val>_stdDev</Val></Parameter>
+					<Parameter Name='postfix_var' Type='String' Src='internalDefault' Opt='mandatory'><Val>_var</Val></Parameter>
+					<Parameter Name='postfix_stdDevMad' Type='String' Src='internalDefault' Opt='mandatory'><Val>_stdDevMAD</Val></Parameter>
+					<Parameter Name='postfix_mean' Type='String' Src='internalDefault' Opt='mandatory'><Val>_mean</Val></Parameter>
+					<Parameter Name='postfix_median' Type='String' Src='internalDefault' Opt='mandatory'><Val>_median</Val></Parameter>
+					<Parameter Name='postfix_sum' Type='String' Src='internalDefault' Opt='mandatory'><Val>_sum</Val></Parameter>
+					<Parameter Name='postfix_minority' Type='String' Src='internalDefault' Opt='mandatory'><Val>_minority</Val></Parameter>
+					<Parameter Name='postfix_majority' Type='String' Src='internalDefault' Opt='mandatory'><Val>_majority</Val></Parameter>
+					<Parameter Name='postfix_entropy' Type='String' Src='internalDefault' Opt='mandatory'><Val>_entropy</Val></Parameter>
+					<Parameter Name='postfix_center' Type='String' Src='internalDefault' Opt='mandatory'><Val>_center</Val></Parameter>
+					<Parameter Name='postfix_pdens' Type='String' Src='internalDefault' Opt='mandatory'><Val>_pdens</Val></Parameter>
+					<Parameter Name='postfix_pcount' Type='String' Src='internalDefault' Opt='mandatory'><Val>_pcount</Val></Parameter>
+					<Parameter Name='postfix_quantile' Type='String' Src='C:\Program Files\opals_2.3.2\cfg\opals.cfg' Opt='mandatory'><Val>_q%.2f</Val></Parameter>
+					<Parameter Name='postfix_sigmaz' Type='String' Src='internalDefault' Opt='mandatory'><Val>_sigmaZ</Val></Parameter>
+					<Parameter Name='postfix_sigma0' Type='String' Src='internalDefault' Opt='mandatory'><Val>_sigma0</Val></Parameter>
+					<Parameter Name='postfix_excen' Type='String' Src='internalDefault' Opt='mandatory'><Val>_excen</Val></Parameter>
+					<Parameter Name='postfix_slope' Type='String' Src='internalDefault' Opt='mandatory'><Val>_slope</Val></Parameter>
+					<Parameter Name='postfix_slpDeg' Type='String' Src='internalDefault' Opt='mandatory'><Val>_slpDeg</Val></Parameter>
+					<Parameter Name='postfix_slpRad' Type='String' Src='internalDefault' Opt='mandatory'><Val>_slpRad</Val></Parameter>
+					<Parameter Name='postfix_expos' Type='String' Src='internalDefault' Opt='mandatory'><Val>_expos</Val></Parameter>
+					<Parameter Name='postfix_nx' Type='String' Src='internalDefault' Opt='mandatory'><Val>_nx</Val></Parameter>
+					<Parameter Name='postfix_ny' Type='String' Src='internalDefault' Opt='mandatory'><Val>_ny</Val></Parameter>
+					<Parameter Name='postfix_openness' Type='String' Src='internalDefault' Opt='mandatory'><Val>_open</Val></Parameter>
+					<Parameter Name='column_name_alias' Type='Vector&#60;ColumnNameAlias&#62;' Src='C:\Program Files\opals_2.3.2\cfg\opals.cfg' Opt='optional'><Val>GPSTime:t </Val><Val>Amplitude:amp </Val><Val>EchoWidth:ew </Val><Val>BeamVectorX:beamx </Val><Val>BeamVectorY:beamy </Val><Val>BeamVectorZ:beamz </Val><Val>NormalX:nx </Val><Val>NormalY:ny </Val><Val>NormalZ:nz </Val></Parameter>
+					<Parameter Name='postfix_kmin' Type='String' Src='internalDefault' Opt='mandatory'><Val>_kmin</Val></Parameter>
+					<Parameter Name='postfix_kmax' Type='String' Src='internalDefault' Opt='mandatory'><Val>_kmax</Val></Parameter>
+					<Parameter Name='postfix_kmean' Type='String' Src='internalDefault' Opt='mandatory'><Val>_kmean</Val></Parameter>
+					<Parameter Name='postfix_kgauss' Type='String' Src='internalDefault' Opt='mandatory'><Val>_kgauss</Val></Parameter>
+					<Parameter Name='postfix_kminDir' Type='String' Src='internalDefault' Opt='mandatory'><Val>_kminDir</Val></Parameter>
+					<Parameter Name='postfix_kmaxDir' Type='String' Src='internalDefault' Opt='mandatory'><Val>_kmaxDir</Val></Parameter>
+					<Parameter Name='postfix_absKmaxDir' Type='String' Src='internalDefault' Opt='mandatory'><Val>_absKmaxDir</Val></Parameter>
+					<Parameter Name='postfix_precision' Type='String' Src='C:\Program Files\opals_2.3.2\cfg\opals.cfg' Opt='mandatory'><Val>_prec</Val></Parameter>
+				</Global>
+			</Parameters>
+			<LogEntry Level="info" Time="2023-01-12 11:40:39.401193" Thread="1">Stage 1/4: Initializing dataset</LogEntry>
+			<LogEntry Level="verbose" Time="2023-01-12 11:40:39.407728" Thread="1"><table><tr><th>ODM attribute statistics:</th><th></th><th></th><th></th><th></th><th></th><th></th></tr><tr><td>name</td><td>type</td><td>count</td><td>min</td><td>max</td><td>mean</td><td>sigma</td></tr><tr><td>Amplitude</td><td>float</td><td>1000000</td><td>0</td><td>255</td><td>155.655</td><td>34.6411</td></tr><tr><td>EchoNumber</td><td>unsigned byte</td><td>1000000</td><td>1</td><td>3</td><td>1.00252</td><td>0.0502558</td></tr><tr><td>NrOfEchos</td><td>unsigned byte</td><td>1000000</td><td>1</td><td>3</td><td>1.00492</td><td>0.0701554</td></tr><tr><td>ClassificationFlags</td><td>unsigned byte</td><td>1000000</td><td>0</td><td>0</td><td>0</td><td>0</td></tr><tr><td>ScanDirection</td><td>boolean</td><td>1000000</td><td>-</td><td>-</td><td>-</td><td>-</td></tr><tr><td>EdgeOfFlightLine</td><td>boolean</td><td>1000000</td><td>-</td><td>-</td><td>-</td><td>-</td></tr><tr><td>Classification</td><td>unsigned byte</td><td>1000000</td><td>1</td><td>2</td><td>1.59451</td><td>0.490987</td></tr><tr><td>ScanAngle</td><td>float</td><td>1000000</td><td>0</td><td>0</td><td>0</td><td>0</td></tr><tr><td>UserData</td><td>unsigned byte</td><td>1000000</td><td>0</td><td>0</td><td>0</td><td>0</td></tr><tr><td>PointSourceId</td><td>unsigned short</td><td>1000000</td><td>0</td><td>0</td><td>0</td><td>0</td></tr><tr><td>GPSTime</td><td>double</td><td>1000000</td><td>20510.4</td><td>24160.2</td><td>22314.7</td><td>1277.04</td></tr><tr><td>Red</td><td>unsigned short</td><td>1000000</td><td>0</td><td>42405</td><td>721.167</td><td>4077.96</td></tr><tr><td>Green</td><td>unsigned short</td><td>1000000</td><td>0</td><td>45232</td><td>828.723</td><td>4630.04</td></tr><tr><td>Blue</td><td>unsigned short</td><td>1000000</td><td>0</td><td>45232</td><td>779.227</td><td>4420.28</td></tr><tr><td>Id</td><td>64bit integer</td><td>1000000</td><td>-844401307811840</td><td>3096244071172573</td><td>5.88671e+14</td><td>8.8595e+14</td></tr><tr><td>FileId</td><td>unsigned short</td><td>1000000</td><td>1</td><td>1</td><td>1</td><td>0</td></tr><tr><td>LayerId</td><td>unsigned short</td><td>1000000</td><td>0</td><td>0</td><td>0</td><td>0</td></tr><tr><td>WinputCode</td><td>unsigned short</td><td>1000000</td><td>30</td><td>30</td><td>30</td><td>6.69747e-15</td></tr><tr><td>StructNr</td><td>unsigned short</td><td>1000000</td><td>0</td><td>0</td><td>0</td><td>0</td></tr></table></LogEntry>
+			<LogEntry Level="info" Time="2023-01-12 11:40:39.409939" Thread="1"><table><tr><th>Data source (ODM)</th><th>E:/NATUR_CUNI\_DP\data\LAZ\odm\ahk_uls_full.odm</th></tr><tr><td>Minimum X-Y-Z</td><td>652196.765  5188591.449  2232.735</td></tr><tr><td>Maximum X-Y-Z</td><td>652583.156  5189240.496  2561.000</td></tr></table></LogEntry>
+			<LogEntry Level="info" Time="2023-01-12 11:40:39.409939" Thread="1">Stage 2/4: Scanning data</LogEntry>
+			<LogEntry Level="verbose" Time="2023-01-12 11:40:40.839300" Thread="1">Done.</LogEntry>
+			<LogEntry Level="info" Time="2023-01-12 11:40:40.839300" Thread="1">Stage 3/4: Calculating histogram</LogEntry>
+			<LogEntry Level="verbose" Time="2023-01-12 11:40:41.257502" Thread="1">Done.</LogEntry>
+			<LogEntry Level="info" Time="2023-01-12 11:40:41.257502" Thread="1">Stage 4/4: Calculating sigma_mad</LogEntry>
+			<LogEntry Level="verbose" Time="2023-01-12 11:40:41.416885" Thread="1">Done.</LogEntry>
+			<LogEntry Level="info" Time="2023-01-12 11:40:41.586544" Thread="1">Histogram:<br />Label: z<br />Bins: (2226.170,0.000) (2232.735,0.006) (2239.300,0.008) (2245.866,0.014) (2252.431,0.016) (2258.996,0.005) (2265.562,0.006) (2272.127,0.013) (2278.692,0.016) (2285.257,0.011) (2291.823,0.007) (2298.388,0.006) (2304.953,0.004) (2311.519,0.007) (2318.084,0.005) (2324.649,0.009) (2331.215,0.008) (2337.780,0.021) (2344.345,0.019) (2350.910,0.008) (2357.476,0.008) (2364.041,0.014) (2370.606,0.009) (2377.172,0.013) (2383.737,0.010) (2390.302,0.007) (2396.868,0.018) (2403.433,0.108) (2409.998,0.058) (2416.563,0.038) (2423.129,0.038) (2429.694,0.025) (2436.259,0.023) (2442.825,0.022) (2449.390,0.007) (2455.955,0.018) (2462.521,0.016) (2469.086,0.007) (2475.651,0.008) (2482.216,0.027) (2488.782,0.014) (2495.347,0.023) (2501.912,0.018) (2508.478,0.048) (2515.043,0.048) (2521.608,0.055) (2528.174,0.056) (2534.739,0.032) (2541.304,0.021) (2547.869,0.015) (2554.435,0.008) (2561.000,0.000) <br />Label: z<br />CountData: 1000000<br />CountUsed: 1000000<br />Min: 2232.735<br />Max: 2561.000<br />Mean: 2432.746<br />Median: 2427.815<br />Mode: 2406.715<br />StdDev: 83.636<br />StdDevMAD: 104.497<br />Rms: 2434.183<br />Skewness: -0.528<br />CalcMode: rational<br />Quantiles: (0.010,2238.575) (0.050,2270.422) (0.250,2398.083) (0.750,2507.098) (0.900,2531.599) (0.950,2540.308) </LogEntry>
+			<LogEntry Level="info" Time="2023-01-12 11:40:41.586544" Thread="1">Running opalsHisto took: 00:00:02</LogEntry>
+		</Module>
+		<Module>
+			<Name>opalsHisto</Name>
+			<Version>2.3.2.0 compiled on May 28 2019 01:12:12</Version>
+			<License>OPALS DEMO MODE, For a full version please contact, Department of Geodesy and Geoinformation (GEO), Vienna University of Technology, Gußhausstraße 27-29, 1040 Vienna, Austria, http://www.geo.tuwien.ac.at/</License>
+			<LogEntry Level="verbose" Time="2023-01-12 11:40:42.040797" Thread="1">Opening data source(s) ...</LogEntry>
+			<LogEntry Level="verbose" Time="2023-01-12 11:40:42.042826" Thread="1">Done.</LogEntry>
+			<LogEntry Level="info" Time="2023-01-12 11:40:42.123523" Thread="1">Running opalsHisto ...</LogEntry>
+			<WorkDir>E:\NATUR_CUNI\_DP\code</WorkDir>
+			<ModulePath>C:\Program Files\opals_2.3.2\opals\Import.pyd</ModulePath>
+			<Parameters>
+				<Specific>
+					<Parameter Name='inFile' Type='Vector&#60;Path&#62;' Src='interFace' Opt='mandatory'><Val>E:\NATUR_CUNI\_DP\data\LAZ\raster\ahk_uls_pdens.tif</Val></Parameter>
+					<Parameter Name='attribute' Type='Vector&#60;String&#62;' Src='estimated' Opt='mandatory'><Val>1</Val></Parameter>
+					<Parameter Name='histogram' Type='Vector&#60;HistoStats&#62;' Src='unknown' Opt='output'></Parameter>
+					<Parameter Name='nBins' Type='unsigned int' Src='internalDefault' Opt='optional'><Val>50</Val></Parameter>
+					<Parameter Name='binWidth' Type='float' Src='unknown' Opt='optional'></Parameter>
+					<Parameter Name='sampleRange' Type='float[2]' Src='unknown' Opt='optional'></Parameter>
+					<Parameter Name='densityRange' Type='float[2]' Src='unknown' Opt='optional'></Parameter>
+					<Parameter Name='limit' Type='double[4]' Src='unknown' Opt='optional'></Parameter>
+					<Parameter Name='filter' Type='String' Src='unknown' Opt='optional'></Parameter>
+					<Parameter Name='plotFile' Type='Vector&#60;Path&#62;' Src='interFace' Opt='mandatory'><Val>E:\NATUR_CUNI\_DP\data\LAZ\info\ahk_uls_pdens_hist.svg</Val></Parameter>
+					<Parameter Name='probabilities' Type='Vector&#60;double&#62;' Src='internalDefault' Opt='mandatory'><Val>0.01</Val><Val>0.05</Val><Val>0.25</Val><Val>0.75</Val><Val>0.9</Val><Val>0.95</Val></Parameter>
+					<Parameter Name='procMode' Type='HistoMode' Src='estimated' Opt='mandatory'><Val>real</Val></Parameter>
+					<Parameter Name='exactComputation' Type='bool' Src='internalDefault' Opt='mandatory'><Val>0</Val></Parameter>
+				</Specific>
+				<Common>
+					<Parameter Name='nbThreads' Type='unsigned int' Src='internalDefault' Opt='mandatory'><Val>8</Val></Parameter>
+					<Parameter Name='screenLogLevel' Type='LogLevel' Src='interFace' Opt='optional'><Val>warning</Val></Parameter>
+					<Parameter Name='fileLogLevel' Type='LogLevel' Src='internalDefault' Opt='optional'><Val>verbose</Val></Parameter>
+					<Parameter Name='lineBufferedScreenLog' Type='bool' Src='internalDefault' Opt='mandatory'><Val>0</Val></Parameter>
+					<Parameter Name='logFile' Type='Path' Src='internalDefault' Opt='optional'><Val>opalsLog.xml</Val></Parameter>
+					<Parameter Name='cfgFile' Type='Path' Src='unknown' Opt='optional'></Parameter>
+					<Parameter Name='paramMapping' Type='String' Src='internalDefault' Opt='mandatory'><Val></Val></Parameter>
+					<Parameter Name='inParamFiles' Type='Vector&#60;Path&#62;' Src='unknown' Opt='optional'></Parameter>
+					<Parameter Name='outParamFile' Type='Path' Src='unknown' Opt='optional'></Parameter>
+					<Parameter Name='scope' Type='String' Src='unknown' Opt='optional'></Parameter>
+					<Parameter Name='deleteEmptyOutFile' Type='bool' Src='internalDefault' Opt='optional'><Val>0</Val></Parameter>
+				</Common>
+				<Global>
+					<Parameter Name='force_coord_ref_sys' Type='bool' Src='internalDefault' Opt='optional'><Val>0</Val></Parameter>
+					<Parameter Name='coord_ref_sys' Type='String' Src='unknown' Opt='optional'></Parameter>
+					<Parameter Name='coord_system' Type='String' Src='unknown' Opt='optional'></Parameter>
+					<Parameter Name='points_in_memory' Type='unsigned int' Src='internalDefault' Opt='optional'><Val>4000000</Val></Parameter>
+					<Parameter Name='max_log_file_mb' Type='unsigned int' Src='internalDefault' Opt='mandatory'><Val>10</Val></Parameter>
+					<Parameter Name='oformat_grid' Type='String' Src='internalDefault' Opt='mandatory'><Val>GTiff</Val></Parameter>
+					<Parameter Name='oformat_vector' Type='String' Src='internalDefault' Opt='mandatory'><Val>shape</Val></Parameter>
+					<Parameter Name='oformat_tin' Type='String' Src='internalDefault' Opt='mandatory'><Val>REB</Val></Parameter>
+					<Parameter Name='oformat_lidar' Type='String' Src='internalDefault' Opt='mandatory'><Val>las</Val></Parameter>
+					<Parameter Name='data_type_grid' Type='RasterDataType' Src='internalDefault' Opt='mandatory'><Val>float32</Val></Parameter>
+					<Parameter Name='create_option' Type='Vector&#60;String&#62;' Src='C:\Program Files\opals_2.3.2\cfg\opals.cfg' Opt='optional'><Val>BIGTIFF=IF_NEEDED</Val><Val>TFW=NO</Val><Val>TILED=YES</Val><Val>COMPRESS=LZW</Val><Val>PROFILE=GDALGeoTIFF</Val><Val>BLOCKXSIZE=64</Val><Val>BLOCKYSIZE=64</Val><Val>DECIMAL_PRECISION=8</Val></Parameter>
+					<Parameter Name='postfix_z' Type='String' Src='internalDefault' Opt='mandatory'><Val>_z</Val></Parameter>
+					<Parameter Name='postfix_attribute' Type='String' Src='internalDefault' Opt='mandatory'><Val>_%s</Val></Parameter>
+					<Parameter Name='postfix_min' Type='String' Src='internalDefault' Opt='mandatory'><Val>_min</Val></Parameter>
+					<Parameter Name='postfix_max' Type='String' Src='internalDefault' Opt='mandatory'><Val>_max</Val></Parameter>
+					<Parameter Name='postfix_range' Type='String' Src='internalDefault' Opt='mandatory'><Val>_range</Val></Parameter>
+					<Parameter Name='postfix_nmin' Type='String' Src='internalDefault' Opt='mandatory'><Val>_nmin%d</Val></Parameter>
+					<Parameter Name='postfix_nmax' Type='String' Src='internalDefault' Opt='mandatory'><Val>_nmax%d</Val></Parameter>
+					<Parameter Name='postfix_rms' Type='String' Src='internalDefault' Opt='mandatory'><Val>_rms</Val></Parameter>
+					<Parameter Name='postfix_stdDev' Type='String' Src='internalDefault' Opt='mandatory'><Val>_stdDev</Val></Parameter>
+					<Parameter Name='postfix_var' Type='String' Src='internalDefault' Opt='mandatory'><Val>_var</Val></Parameter>
+					<Parameter Name='postfix_stdDevMad' Type='String' Src='internalDefault' Opt='mandatory'><Val>_stdDevMAD</Val></Parameter>
+					<Parameter Name='postfix_mean' Type='String' Src='internalDefault' Opt='mandatory'><Val>_mean</Val></Parameter>
+					<Parameter Name='postfix_median' Type='String' Src='internalDefault' Opt='mandatory'><Val>_median</Val></Parameter>
+					<Parameter Name='postfix_sum' Type='String' Src='internalDefault' Opt='mandatory'><Val>_sum</Val></Parameter>
+					<Parameter Name='postfix_minority' Type='String' Src='internalDefault' Opt='mandatory'><Val>_minority</Val></Parameter>
+					<Parameter Name='postfix_majority' Type='String' Src='internalDefault' Opt='mandatory'><Val>_majority</Val></Parameter>
+					<Parameter Name='postfix_entropy' Type='String' Src='internalDefault' Opt='mandatory'><Val>_entropy</Val></Parameter>
+					<Parameter Name='postfix_center' Type='String' Src='internalDefault' Opt='mandatory'><Val>_center</Val></Parameter>
+					<Parameter Name='postfix_pdens' Type='String' Src='internalDefault' Opt='mandatory'><Val>_pdens</Val></Parameter>
+					<Parameter Name='postfix_pcount' Type='String' Src='internalDefault' Opt='mandatory'><Val>_pcount</Val></Parameter>
+					<Parameter Name='postfix_quantile' Type='String' Src='C:\Program Files\opals_2.3.2\cfg\opals.cfg' Opt='mandatory'><Val>_q%.2f</Val></Parameter>
+					<Parameter Name='postfix_sigmaz' Type='String' Src='internalDefault' Opt='mandatory'><Val>_sigmaZ</Val></Parameter>
+					<Parameter Name='postfix_sigma0' Type='String' Src='internalDefault' Opt='mandatory'><Val>_sigma0</Val></Parameter>
+					<Parameter Name='postfix_excen' Type='String' Src='internalDefault' Opt='mandatory'><Val>_excen</Val></Parameter>
+					<Parameter Name='postfix_slope' Type='String' Src='internalDefault' Opt='mandatory'><Val>_slope</Val></Parameter>
+					<Parameter Name='postfix_slpDeg' Type='String' Src='internalDefault' Opt='mandatory'><Val>_slpDeg</Val></Parameter>
+					<Parameter Name='postfix_slpRad' Type='String' Src='internalDefault' Opt='mandatory'><Val>_slpRad</Val></Parameter>
+					<Parameter Name='postfix_expos' Type='String' Src='internalDefault' Opt='mandatory'><Val>_expos</Val></Parameter>
+					<Parameter Name='postfix_nx' Type='String' Src='internalDefault' Opt='mandatory'><Val>_nx</Val></Parameter>
+					<Parameter Name='postfix_ny' Type='String' Src='internalDefault' Opt='mandatory'><Val>_ny</Val></Parameter>
+					<Parameter Name='postfix_openness' Type='String' Src='internalDefault' Opt='mandatory'><Val>_open</Val></Parameter>
+					<Parameter Name='column_name_alias' Type='Vector&#60;ColumnNameAlias&#62;' Src='C:\Program Files\opals_2.3.2\cfg\opals.cfg' Opt='optional'><Val>GPSTime:t </Val><Val>Amplitude:amp </Val><Val>EchoWidth:ew </Val><Val>BeamVectorX:beamx </Val><Val>BeamVectorY:beamy </Val><Val>BeamVectorZ:beamz </Val><Val>NormalX:nx </Val><Val>NormalY:ny </Val><Val>NormalZ:nz </Val></Parameter>
+					<Parameter Name='postfix_kmin' Type='String' Src='internalDefault' Opt='mandatory'><Val>_kmin</Val></Parameter>
+					<Parameter Name='postfix_kmax' Type='String' Src='internalDefault' Opt='mandatory'><Val>_kmax</Val></Parameter>
+					<Parameter Name='postfix_kmean' Type='String' Src='internalDefault' Opt='mandatory'><Val>_kmean</Val></Parameter>
+					<Parameter Name='postfix_kgauss' Type='String' Src='internalDefault' Opt='mandatory'><Val>_kgauss</Val></Parameter>
+					<Parameter Name='postfix_kminDir' Type='String' Src='internalDefault' Opt='mandatory'><Val>_kminDir</Val></Parameter>
+					<Parameter Name='postfix_kmaxDir' Type='String' Src='internalDefault' Opt='mandatory'><Val>_kmaxDir</Val></Parameter>
+					<Parameter Name='postfix_absKmaxDir' Type='String' Src='internalDefault' Opt='mandatory'><Val>_absKmaxDir</Val></Parameter>
+					<Parameter Name='postfix_precision' Type='String' Src='C:\Program Files\opals_2.3.2\cfg\opals.cfg' Opt='mandatory'><Val>_prec</Val></Parameter>
+				</Global>
+			</Parameters>
+			<LogEntry Level="info" Time="2023-01-12 11:40:42.131697" Thread="1">Stage 1/4: Initializing dataset</LogEntry>
+			<LogEntry Level="info" Time="2023-01-12 11:40:42.131697" Thread="1"><table><tr><th>Data source (GDAL)</th><th>E:/NATUR_CUNI\_DP\data\LAZ\raster\ahk_uls_pdens.tif</th></tr><tr><td>Minimum X-Y-Z</td><td>652197.000  5188591.000     1.000</td></tr><tr><td>Maximum X-Y-Z</td><td>652583.000  5189240.000  1884.000</td></tr></table></LogEntry>
+			<LogEntry Level="info" Time="2023-01-12 11:40:42.131697" Thread="1">Stage 2/4: Scanning data</LogEntry>
+			<LogEntry Level="verbose" Time="2023-01-12 11:40:42.157330" Thread="1">Done.</LogEntry>
+			<LogEntry Level="info" Time="2023-01-12 11:40:42.157330" Thread="1">Stage 3/4: Calculating histogram</LogEntry>
+			<LogEntry Level="verbose" Time="2023-01-12 11:40:42.173899" Thread="1">Done.</LogEntry>
+			<LogEntry Level="info" Time="2023-01-12 11:40:42.173899" Thread="1">Stage 4/4: Calculating sigma_mad</LogEntry>
+			<LogEntry Level="verbose" Time="2023-01-12 11:40:42.173899" Thread="1">Done.</LogEntry>
+			<LogEntry Level="info" Time="2023-01-12 11:40:42.190694" Thread="1">Histogram:<br />Label: band(1)<br />Bins: (-36.660,0.000) (1.000,0.807) (38.660,0.118) (76.320,0.041) (113.980,0.019) (151.640,0.007) (189.300,0.003) (226.960,0.002) (264.620,0.001) (302.280,0.001) (339.940,0.000) (377.600,0.000) (415.260,0.000) (452.920,0.000) (490.580,0.000) (528.240,0.000) (565.900,0.000) (603.560,0.000) (641.220,0.000) (678.880,0.000) (716.540,0.000) (754.200,0.000) (791.860,0.000) (829.520,0.000) (867.180,0.000) (904.840,0.000) (942.500,0.000) (980.160,0.000) (1017.820,0.000) (1055.480,0.000) (1093.140,0.000) (1130.800,0.000) (1168.460,0.000) (1206.120,0.000) (1243.780,0.000) (1281.440,0.000) (1319.100,0.000) (1356.760,0.000) (1394.420,0.000) (1432.080,0.000) (1469.740,0.000) (1507.400,0.000) (1545.060,0.000) (1582.720,0.000) (1620.380,0.000) (1658.040,0.000) (1695.700,0.000) (1733.360,0.000) (1771.020,0.000) (1808.680,0.000) (1846.340,0.000) (1884.000,0.000) <br />Label: band(1)<br />CountData: 40106<br />CountUsed: 40106<br />Min: 1.000<br />Max: 1884.000<br />Mean: 24.874<br />Median: 11.000<br />Mode: 19.830<br />StdDev: 39.427<br />StdDevMAD: 13.344<br />Rms: 46.618<br />Skewness: 7.234<br />CalcMode: rational<br />Quantiles: (0.010,1.000) (0.050,1.000) (0.250,3.895) (0.750,30.338) (0.900,65.715) (0.950,101.686) </LogEntry>
+			<LogEntry Level="info" Time="2023-01-12 11:40:42.190694" Thread="1">Running opalsHisto took: 00:00:00</LogEntry>
+		</Module>
+	</opals:Log>
+</xsl:stylesheet>

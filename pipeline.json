@@ -1,0 +1,11 @@
+{
+  "pipeline": [
+    "E:/NATUR_CUNI/_DP/data/LAZ/ahk_uls_full.las",
+    {
+      "filename": "E:/NATUR_CUNI/_DP/data/LAZ/raster/outputfile.tif",
+      "gdaldriver": "GTiff",
+      "resolution": "1.0",
+      "type": "writers.gdal"
+    }
+  ]
+}
