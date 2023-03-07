@@ -15,54 +15,116 @@ import scipy
 
 
 def main():
-    path = r"E:/NATUR_CUNI/_DP/data/LAZ/raster/ahk_uls_pdalmerge_aoi_first_raster.tif"
-    # path = r"E:/NATUR_CUNI/_DP/data/LAZ/raster/outputfile.tif"
-    raster_to_histo(path)
+    # path_raster = r"E:/NATUR_CUNI/_DP/data/LAZ/raster/ahk_uls_pdalmerge_aoi_first_raster.tif"
+    # path_raster2 = r"E:/NATUR_CUNI/_DP/data/LAZ/raster/ahk_uls_pdalmerge_aoi_raster.tif"
+    path_las = r'E:/NATUR_CUNI/_DP/data/LAZ/ahk_uls_pdalmerge_aoi.laz'
+    profil_shp = r'E:/NATUR_CUNI/_DP/data/profil.shp'
+    boulder1 = r'E:/NATUR_CUNI/_DP/data/LAZ/boulder/first/boulder1.las'
+    
+    output_path = r'E:/NATUR_CUNI/_DP/data/LAZ'
+
+    # raster_to_histo(path_raster, output_path)
+    # raster_to_histo(path_raster2, output_path)
+    # pc_clip(path_las, profil_shp)
+    # pc_raster(path_las)
+    # las_to_histo(path_las, output_path)
+    thinning(boulder1, _, _)
 
 
-def raster_to_histo(path):
+def scan_angle():
+    pass
+
+
+def thinning(path, output, method):
+    orig_las = lp.read(path, )
+    print(list(orig_las.point_format.dimension_names))
+    orig_las.gps_time.sort()
+    print(orig_las.gps_time)
+    
+
+
+def las_to_histo(path, output_path):
+    las = lp.read(path)
+    dim_list = list(las.point_format.dimension_names)
+    split_path = os.path.split(path)
+    print(dim_list[:4])
+    for name in dim_list[:4]:
+        if name in ['X', 'Y', 'Z']:
+            dim = np.array(las[name])/100
+        else:
+            dim = np.array(las[name])
+        output = os.path.join(output_path, 'histo', split_path[1][:-4], name + '.jpg')
+        histogram(dim, name, output)
+
+
+
+def raster_to_histo(path, output_path):
     raster = rio.open(path, mode="r+")
-    print(raster.nodata)
+    print(type(raster.descriptions))
     # masked_band = np.ma.masked_array(raster.read(1), raster.nodata)
     bands = raster.read(masked=True)
     mask = bands[0].mask
-    for band in bands:
+    split_path = os.path.split(path)
+    for band, desc in zip(bands, raster.descriptions):
         band.mask = mask
         list_band = []
         for row in band:
             for value in row:
                 if type(value) != np.ma.core.MaskedConstant:
                     list_band.append(value)
-        # histogram(np.array(list_band))
-        summary_stats(np.array(list_band))
+        output = os.path.join(output_path, 'histo', split_path[1][:-4], desc + '.jpg')
+        histogram(np.array(list_band), desc, output)
 
 
         
-def histogram(band):
+def histogram_old(band):
+    summary_stats(np.array(band))
+
+
     n, bins, patches = plt.hist(x=band, bins='auto',
                             alpha=0.7, rwidth=0.85)
     plt.grid(axis='y', alpha=0.75)
     plt.xlabel('Value')
     plt.ylabel('Frequency')
     plt.title('My Very Own Histogram')
-    # plt.text(23, 45, r'$\mu=15, b=3$')
+    plt.text(1, 1, r'$\mu=15, b=3$', transform=ax.transAxes)
     maxfreq = n.max()
     # Set a clean upper y-axis limit.
     plt.ylim(ymax=np.ceil(maxfreq / 1000) * 1000 if maxfreq % 1000 else maxfreq + 1000)
     plt.show()
 
 
-def summary_stats(band):
-    # band_series = pd.Series(band)
-    # stats = band_series.describe()
-    stats = scipy.stats.describe(band)
-    print(stats)
+def histogram(band, desc, output):
+    stats = summary_stats(np.array(band))
+    fig, ax = plt.subplots()
+    n, bins, patches = ax.hist(x=band, bins = 20)
+    plt.title(desc)
+    i=0.95
+    for stat in stats.iteritems():
+        text = '{}: {}'.format(stat[0], round(stat[1],3))
+        ax.text(1.05,i, text, transform=ax.transAxes)
+        i-=0.05
+    plt.savefig(output,  bbox_inches='tight')
+    plt.show()
 
+def summary_stats(band):
+    band_series = pd.Series(band)
+    stats1 = band_series.describe()
+    stats2 = scipy.stats.describe(band)
+    stats1['median'] = np.median(band)
+    stats1['mode'] = scipy.stats.mode(band).mode[0]
+    stats1['mad'] = np.median(abs(band-np.median(band)))
+    stats1['variance'] = stats2.variance
+    stats1['range'] = np.ptp(band)
+    stats1['rms'] = np.sqrt(np.mean(band**2))
+    stats1['skewness'] = stats2.skewness
+    stats1['kurtosis'] = stats2.kurtosis
+    return stats1
 
 
 def pc_raster(path):
     file = path2str(path, None)
-    output = path2str(path, '_first_raster.tif')
+    output = path2str(path, '_first_raster_01.tif')
 
     x="""
     {{
@@ -73,7 +135,7 @@ def pc_raster(path):
             }},
             {{
                 "filename": "{}",
-                "resolution": 1.0,
+                "resolution": 0.25,
                 "where": "ReturnNumber == 1"
             }}
         ]
@@ -114,7 +176,7 @@ def point_density(path, mode, radius):
 def pc_clip(path, shapefile):
     print('start')
     input = path2str(path, None)
-    output = path2str(path, '_aoi.laz')
+    output = path2str(path, '_profil.laz')
     poly = path2str(get_geometry_from_shp(shapefile), None)
     pdal_type = """"filters.crop",
                 "polygon": "{}" """.format(poly)
