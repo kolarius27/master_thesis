@@ -5,6 +5,7 @@ import geopandas as gpd
 import pandas as pd
 import glob
 import os
+import sys
 import laspy as lp
 import numpy as np
 import open3d as o3d
@@ -12,33 +13,105 @@ import matplotlib.pyplot as plt
 from PIL import Image
 import rasterio as rio
 import scipy
+import math as m
+from utils import *
 
 
 def main():
     # path_raster = r"E:/NATUR_CUNI/_DP/data/LAZ/raster/ahk_uls_pdalmerge_aoi_first_raster.tif"
     # path_raster2 = r"E:/NATUR_CUNI/_DP/data/LAZ/raster/ahk_uls_pdalmerge_aoi_raster.tif"
-    path_las = r'E:/NATUR_CUNI/_DP/data/LAZ/ahk_uls_pdalmerge_aoi.laz'
-    profil_shp = r'E:/NATUR_CUNI/_DP/data/profil.shp'
+    # path_las = r'E:/NATUR_CUNI/_DP/data/LAZ/ahk_uls_pdalmerge_aoi.laz'
+    # profil_shp = r'E:/NATUR_CUNI/_DP/data/profil.shp'
     boulder1 = r'E:/NATUR_CUNI/_DP/data/LAZ/boulder/first/boulder1.las'
     
-    output_path = r'E:/NATUR_CUNI/_DP/data/LAZ'
+    # output_path = r'E:/NATUR_CUNI/_DP/data/LAZ'
 
     # raster_to_histo(path_raster, output_path)
     # raster_to_histo(path_raster2, output_path)
     # pc_clip(path_las, profil_shp)
     # pc_raster(path_las)
     # las_to_histo(path_las, output_path)
-    thinning(boulder1, _, _)
+    # thinning(boulder1, _, _)
+    
+    trajectory_path = r'E:/NATUR_CUNI/_DP/data/Trajectory/HEK_trajectory.csv'
+
+    #_, _ = pick_scanner_position(boulder1, trajectory_path)
+
+    pc_scan_angle(boulder1, trajectory_path)
+
+    # pc_normal(boulder1, 60)
 
 
-def scan_angle():
-    pass
+def pc_scan_angle(path, trajectory_path):
+    gdf, las = pick_scanner_position(path, trajectory_path)
+    yaw = gdf['Yaw[deg]'].apply(m.radians)
+    pitch = gdf['Pitch[deg]'].apply(m.radians)
+    print(yaw)
+    angle_between(gdf['geometry_y'], gdf['geometry_x'], yaw, pitch)
+
+    # print(gdf['scan_angle'])
 
 
+def pc_normal(path, knn):
+    file = path2str(path, None)
+    output = path2str(path, '_normals_{}.las'.format(knn))
+
+    x="""
+    {{
+        "pipeline": [
+            {{
+                "filename": "{}",
+                "spatialreference": "EPSG:32632"
+            }},
+            {{
+                "type":"filters.normal",
+                "knn":{}
+            }},
+            {{
+                "filename": "{}"
+            }}
+        ]
+    }}""".format(file, knn, output)
+
+    print(x)
+
+    pipeline = pdal.Pipeline(x)
+    execute = pipeline.execute()
+    print('success')
+
+
+def pick_scanner_position(las_path, trajectory_path):
+    df_trj = pd.read_csv(trajectory_path)
+    gdf_trj = gpd.GeoDataFrame(df_trj, geometry=gpd.points_from_xy(df_trj['Easting[m]'], df_trj['Northing[m]'], df_trj['Height[m]']))
+    las = lp.read(las_path)
+    las_points = np.array(las.gps_time)
+    gdf_las = gpd.GeoDataFrame({'gps_time': las_points}, geometry=gpd.points_from_xy(las.x, las.y, las.z))
+    gdf_las['las_index'] = gdf_las.index
+    merge_gdf = pd.merge_asof(gdf_las.sort_values('gps_time'), gdf_trj, left_on='gps_time', right_on='Time[s]', direction='nearest')
+    merge_gdf['scan_distance'] = merge_gdf['geometry_x'].distance(merge_gdf['geometry_y'])
+    print(merge_gdf.columns)
+    merge_gdf.index = merge_gdf['las_index']
+    sort_gdf = merge_gdf.sort_index()
+
+    try:
+        las.add_extra_dim(lp.ExtraBytesParams(
+            name="scan_distance",
+            type=np.float64,
+            description="Distance from scanner"
+        ))
+    except ValueError:
+        print('field already exists')
+
+
+    las['scan_distance'] = merge_gdf['scan_distance']
+
+    return sort_gdf, las
+
+        
 def thinning(path, output, method):
-    orig_las = lp.read(path, )
+    orig_las = lp.read(path)
     print(list(orig_las.point_format.dimension_names))
-    orig_las.gps_time.sort()
+    # orig_las.gps_time.sort()
     print(orig_las.gps_time)
     
 
@@ -148,7 +221,7 @@ def pc_raster(path):
     print('success')
 
 
-def point_density(path, mode, radius):
+def pc_point_density(path, mode, radius):
     file = path2str(path, None)
     output_pc = path2str(path, '_pd.las')
     output_raster = path2str(path, '_pd.tif')
@@ -249,11 +322,6 @@ def create_boundary_shp(path):
     create_shapefile(shp_path, filenames, geometries)
 
 
-
-def get_files(path):
-    return glob.glob(path)
-
-
 def get_pipeline(file, type, output):
     file = path2str(file, None)
     output = path2str(output, None)
@@ -294,24 +362,6 @@ def create_lists(file_list):
     print(geometries)
 
     return filenames, geometries
-
-
-def create_shapefile(shp_path, filenames, geometries):
-    d = {'filename': filenames, 'geometry': geometries}
-    gdf = gpd.GeoDataFrame(d, crs="EPSG:32632")
-    gdf.to_file(shp_path)
-
-
-def get_geometry_from_shp(path):
-    data = gpd.read_file(path)
-    return data['geometry'][0]
-
-
-def path2str(path, end):
-    if end != None:
-        return str(path).replace('\\', '/')[:-4] + '{}'.format(end)
-    else:
-        return str(path).replace('\\', '/')
 
 
 def test():
